@@ -1,0 +1,122 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "PseudoDiscord",
+  "scopeName": "source.pseudodiscord",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#multistrings"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#numbers"
+    },
+    {
+      "include": "#constants"
+    },
+    {
+      "include": "#discordBuilders"
+    },
+    {
+      "include": "#keywords"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.block.pseudodiscord",
+          "begin": "/\\*",
+          "end": "\\*/"
+        },
+        {
+          "name": "comment.line.number-sign.pseudodiscord",
+          "match": "#.*$"
+        },
+        {
+          "name": "comment.line.double-slash.pseudodiscord",
+          "match": "//.*$"
+        }
+      ]
+    },
+    "multistrings": {
+      "patterns": [
+        {
+          "name": "string.quoted.triple.pseudodiscord",
+          "begin": "\\\"\\\"\\\"",
+          "end": "\\\"\\\"\\\"",
+          "patterns": [
+            {
+              "name": "constant.other.placeholder.pseudodiscord",
+              "match": "\\{[^{}]+\\}"
+            }
+          ]
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.pseudodiscord",
+          "begin": "\\\"",
+          "end": "\\\"",
+          "patterns": [
+            {
+              "name": "constant.other.placeholder.pseudodiscord",
+              "match": "\\{[^{}]+\\}"
+            }
+          ]
+        },
+        {
+          "name": "string.quoted.single.pseudodiscord",
+          "begin": "'",
+          "end": "'"
+        }
+      ]
+    },
+    "numbers": {
+      "patterns": [
+        {
+          "name": "constant.numeric.pseudodiscord",
+          "match": "\\b(?:0x[0-9A-Fa-f_]+|0b[01_]+|0o[0-7_]+|\\d[\\d_]*(?:\\.\\d[\\d_]*)?(?:e[+-]?\\d+)?n?)\\b"
+        }
+      ]
+    },
+    "constants": {
+      "patterns": [
+        {
+          "name": "constant.language.pseudodiscord",
+          "match": "(?i)\\b(?:VERDADERO|FALSO|NULO|PI|E)\\b"
+        }
+      ]
+    },
+    "discordBuilders": {
+      "patterns": [
+        {
+          "name": "support.type.pseudodiscord",
+          "match": "(?i)\\b(?:EMBED|BOTON|MENU|SELECT|CAMPO_TEXTO|ENTRADA_TEXTO|MODAL|FILA|ARCHIVO|IMAGEN|ENCUESTA|MENSAJE|BUILDER)\\b"
+        },
+        {
+          "name": "support.function.pseudodiscord",
+          "match": "(?i)\\b(?:GUARDAR|OBTENER|BORRAR|INCREMENTAR)_(?:USUARIO|SERVIDOR|GLOBAL)\\b"
+        },
+        {
+          "name": "support.function.discord.pseudodiscord",
+          "match": "(?i)\\b(?:MENCIONAR|MENCIONAR_ROL|MENCIONAR_CANAL|ID_DE|NOMBRE_DE|NOMBRE_VISIBLE|ES_BOT|AVATAR_DE|BANNER_DE|ROLES_DE|ROLES_OBJETO|ROL_MAS_ALTO|JERARQUIA_ROL|TIENE_ROL|TIENE_PERMISO|TIENE_PERMISO_BOT|ESPERAR_MENSAJE|PERMISOS_DE|PRIMER_MENCIONADO|ENLACE_MENSAJE|FECHA_DISCORD|ES_DUENO|ES_ADMINISTRADOR|ES_MIEMBRO|ES_EXPULSABLE|ES_BANEABLE|ES_MODERABLE|PUEDE_EXPULSAR|PUEDE_BANEAR|PUEDE_SILENCIAR|CANTIDAD_MIEMBROS|COLOR_ROL|ESCAPAR_MENCIONES|CODIGO_DISCORD|EMBED_SIMPLE|BUSCAR_SERVIDOR_DISCORD|OBTENER_USUARIO_DISCORD|OBTENER_CANAL_DISCORD|OBTENER_MIEMBRO_DISCORD|OBTENER_ROL_DISCORD|OBTENER_MENSAJE|ENVIAR_PRIVADO|ENVIAR_CANAL|ARGUMENTO|RESTO_ARGUMENTOS|USO_COMANDO|RESPONDER_ERROR|LATENCIA_BOT|TIEMPO_ACTIVO|LISTAR_MODULOS|CARGAR_MODULO)\\b"
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.pseudodiscord",
+          "match": "(?i)\\b(?:PREPARAR|JAVASCRIPT|JS|IMPORTAR|SI|SINO|FIN|MIENTRAS|HACER|BUCLE|PARA|CADA|DESDE|HASTA|PASO|REPETIR|SEGUN|CASO|DEFECTO|INTENTAR|CAPTURAR|FINALMENTE|PARALELO|CARRERA|RAMA|TIEMPO_LIMITE|EXPIRA|RETORNAR|HASTA_QUE|ROMPER|CONTINUAR|LANZAR|AFIRMAR|ESPERAR|EMITIR|FUNCION|SUBPROCESO|DEFINIR|DIMENSION|REGISTRO|ENUM|EXPORTAR|POR|REFERENCIA|COMO|ASYNC|ASINCRONA|ASINCRONO|VARIABLE|CONSTANTE|AL|EVENTO|COMANDO|BARRA|MENSAJE|USUARIO|CONTEXTO|SUBCOMANDO|GRUPO|OPCION|ARGUMENTO|COOLDOWN|GLOBAL|TIPO|DESCRIPCION|REQUERIDO|OPCIONAL|OBLIGATORIO|RESTO|PALABRA|FALTANTE|INVALIDO|MINIMO|MAXIMO|ELECCION|RESPONDER|EFIMERO|SIN_MENCIONES|MENCIONES|ENVIAR|DAR|QUITAR|ROL|EXPULSAR|BANEAR|DESBANEAR|SILENCIAR|ELIMINAR|EDITAR|REACCIONAR|APODO|CREAR|FIJAR|DESFIJAR|LIMPIAR|DIFERIR|SEGUIR|MOSTRAR|MOVER|DESCONECTAR|PRESENCIA|SUGERIR|ARCHIVAR|DESARCHIVAR|BLOQUEAR|DESBLOQUEAR|SLOWMODE|PUBLICAR|PERMITIR|DENEGAR|SINCRONIZAR|AGREGAR|UNIR|SALIR|NUEVO|AWAIT|Y|O|NO|CONTIENE|EN)\\b"
+        }
+      ]
+    }
+  }
+}

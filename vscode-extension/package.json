@@ -1,0 +1,55 @@
+{
+  "name": "pseudodiscord-language",
+  "displayName": "PseudoDiscord Language",
+  "version": "0.30.2",
+  "publisher": "pseudodiscord",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "pseudodiscord",
+        "aliases": [
+          "PseudoDiscord",
+          "pdiscord"
+        ],
+        "extensions": [
+          ".pdiscord",
+          ".pd"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "pseudodiscord",
+        "scopeName": "source.pseudodiscord",
+        "path": "./syntaxes/pseudodiscord.tmLanguage.json"
+      }
+    ],
+    "snippets": [
+      {
+        "language": "pseudodiscord",
+        "path": "./snippets/pseudodiscord.json"
+      }
+    ],
+    "configuration": {
+      "title": "PseudoDiscord",
+      "properties": {
+        "pseudodiscord.libraryPath": {
+          "type": "string",
+          "default": "",
+          "description": "Ruta completa a dist/src/index.js; si está vacía se busca la biblioteca instalada en node_modules."
+        }
+      }
+    }
+  },
+  "main": "./extension.js",
+  "activationEvents": [
+    "onLanguage:pseudodiscord"
+  ]
+}

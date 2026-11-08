@@ -1,0 +1,433 @@
+{
+  "Comando slash": {
+    "prefix": [
+      "comandobarra",
+      "slash"
+    ],
+    "body": [
+      "COMANDO BARRA \"${1:ping}\" DESCRIPCION \"${2:Descripción del comando}\"",
+      "    RESPONDER \"${3:¡Pong!}\"",
+      "FIN COMANDO"
+    ],
+    "description": "Crea un comando /slash con respuesta"
+  },
+  "Comando prefijo": {
+    "prefix": [
+      "comandomensaje",
+      "prefijo"
+    ],
+    "body": [
+      "COMANDO MENSAJE \"${1:hola}\" PREFIJO \"${2:!}\"",
+      "    RESPONDER \"${3:¡Hola!}\"",
+      "FIN COMANDO"
+    ],
+    "description": "Comando con prefijo y RESPONDER"
+  },
+  "Respuesta efímera": {
+    "prefix": [
+      "efimero",
+      "privado"
+    ],
+    "body": [
+      "RESPONDER \"${1:Este mensaje solo lo ves tú}\" EFIMERO"
+    ],
+    "description": "Respuesta efímera a una interacción"
+  },
+  "Respuesta sin menciones": {
+    "prefix": [
+      "sinmenciones"
+    ],
+    "body": [
+      "RESPONDER \"${1:Mensaje sin notificaciones}\" SIN MENCIONES"
+    ],
+    "description": "Bloquea menciones en este mensaje"
+  },
+  "Mencionar usuario": {
+    "prefix": [
+      "mencionar"
+    ],
+    "body": [
+      "MENCIONAR(${1:usuario})"
+    ],
+    "description": "Menciona a un usuario con su ID"
+  },
+  "Evento mensaje": {
+    "prefix": [
+      "almensaje"
+    ],
+    "body": [
+      "AL MENSAJE mensaje",
+      "    ${1:ESCRIBIR mensaje.content}",
+      "FIN"
+    ],
+    "description": "Handler de evento messageCreate"
+  },
+  "Función": {
+    "prefix": [
+      "funcion"
+    ],
+    "body": [
+      "FUNCION ${1:nombre}(${2:parametro})",
+      "    ${3:RETORNAR parametro}",
+      "FIN FUNCION"
+    ],
+    "description": "Función reutilizable"
+  },
+  "Condición": {
+    "prefix": [
+      "si"
+    ],
+    "body": [
+      "SI ${1:condicion} ENTONCES",
+      "    ${2:RESPONDER \"Sí\"}",
+      "SINO",
+      "    ${3:RESPONDER \"No\"}",
+      "FIN SI"
+    ],
+    "description": "Condicional completo"
+  },
+  "Permiso de administrador": {
+    "prefix": [
+      "permiso-admin"
+    ],
+    "body": [
+      "SI TIENE_PERMISO(miembro, \"ADMINISTRADOR\") ENTONCES",
+      "    ${1:RESPONDER \"Acceso permitido\"}",
+      "FIN SI"
+    ],
+    "description": "Comprobar permisos mediante función segura"
+  },
+  "Cargar carpeta de comandos": {
+    "prefix": [
+      "importarcomandos"
+    ],
+    "body": [
+      "IMPORTAR \"./${1:commands}/**\""
+    ],
+    "description": "Carga archivos .pdiscord de una carpeta al iniciar"
+  },
+  "Handler programable de módulos": {
+    "prefix": [
+      "handler",
+      "prepararcomandos"
+    ],
+    "body": [
+      "FUNCION cargarComandos(ruta)",
+      "    PARA CADA archivo EN LISTAR_MODULOS(ruta, VERDADERO)",
+      "        CARGAR_MODULO(archivo)",
+      "    FIN PARA",
+      "FIN FUNCION",
+      "",
+      "AL PREPARAR",
+      "    cargarComandos(\"${1:./comandos}\")",
+      "FIN PREPARAR"
+    ],
+    "description": "Handler modular escrito en PseudoDiscord, sin JavaScript"
+  },
+  "Bloque de preparación": {
+    "prefix": [
+      "preparar",
+      "alpreparar"
+    ],
+    "body": [
+      "AL PREPARAR",
+      "    ${1:ESCRIBIR \"Preparando proyecto\"}",
+      "FIN PREPARAR"
+    ],
+    "description": "Ejecutar lógica antes del login"
+  },
+  "Enviar DM": {
+    "prefix": [
+      "enviardm",
+      "enviarprivado"
+    ],
+    "body": [
+      "ENVIAR_PRIVADO(${1:usuario}, \"${2:¡Hola!}\")"
+    ],
+    "description": "Envío privado mediante función segura"
+  },
+  "Buscar usuario Discord": {
+    "prefix": [
+      "buscardiscord",
+      "obtenerusuariodiscord"
+    ],
+    "body": [
+      "VARIABLE ${1:usuarioEncontrado} = OBTENER_USUARIO_DISCORD(${2:idUsuario})"
+    ],
+    "description": "Obtener usuario por ID de Discord"
+  },
+  "Embed sencillo": {
+    "prefix": [
+      "embedsimple"
+    ],
+    "body": [
+      "RESPONDER EMBED_SIMPLE(\"${1:Título}\", \"${2:Descripción}\", \"${3:#5865F2}\")"
+    ],
+    "description": "Embed rápido, sin builder manual"
+  },
+  "Bloque de código": {
+    "prefix": [
+      "codigodiscord"
+    ],
+    "body": [
+      "RESPONDER CODIGO_DISCORD(${1:texto}, \"${2:js}\")"
+    ],
+    "description": "Formatea un bloque de código Discord"
+  },
+  "Validar permisos": {
+    "prefix": [
+      "esadministrador"
+    ],
+    "body": [
+      "SI ES_ADMINISTRADOR(miembro) ENTONCES",
+      "    ${1:RESPONDER \"Acceso autorizado\"}",
+      "SINO",
+      "    ${2:RESPONDER \"Sin permisos\" EFIMERO}",
+      "FIN SI"
+    ],
+    "description": "Comprueba permisos de administrador"
+  },
+  "Comando expulsar con verificación": {
+    "prefix": [
+      "cmdkick",
+      "kickseguro"
+    ],
+    "body": [
+      "COMANDO BARRA \"${1:expulsar}\" DESCRIPCION \"Expulsa a un miembro\"",
+      "    PERMISOS EXPULSAR_MIEMBROS",
+      "    OPCION objetivo TIPO usuario DESCRIPCION \"Miembro\" REQUERIDO",
+      "    OPCION motivo TIPO texto DESCRIPCION \"Motivo\" REQUERIDO MINIMO 3 MAXIMO 200",
+      "",
+      "    SI PUEDE_EXPULSAR(miembro, objetivo) ENTONCES",
+      "        EXPULSAR objetivo POR motivo",
+      "        RESPONDER \"Expulsión completada.\" SIN MENCIONES",
+      "    SINO",
+      "        RESPONDER \"Sin permiso o jerarquía suficiente.\" EFIMERO",
+      "    FIN SI",
+      "FIN COMANDO"
+    ],
+    "description": "Comando /expulsar con permisos y jerarquía v0.9"
+  },
+  "Comando banear con verificación": {
+    "prefix": [
+      "cmdban",
+      "banseguro"
+    ],
+    "body": [
+      "COMANDO BARRA \"${1:banear}\" DESCRIPCION \"Banea a un miembro\"",
+      "    PERMISOS BANEAR_MIEMBROS",
+      "    OPCION objetivo TIPO usuario DESCRIPCION \"Miembro\" REQUERIDO",
+      "    OPCION motivo TIPO texto DESCRIPCION \"Motivo\" REQUERIDO MINIMO 3 MAXIMO 200",
+      "",
+      "    SI PUEDE_BANEAR(miembro, objetivo) ENTONCES",
+      "        BANEAR objetivo POR motivo",
+      "        RESPONDER \"Baneo completado.\" SIN MENCIONES",
+      "    SINO",
+      "        RESPONDER \"Sin permiso o jerarquía suficiente.\" EFIMERO",
+      "    FIN SI",
+      "FIN COMANDO"
+    ],
+    "description": "Comando /banear seguro con validación de argumentos y jerarquía"
+  },
+  "Permisos del comando prefijo": {
+    "prefix": [
+      "prefijopermisos"
+    ],
+    "body": [
+      "COMANDO MENSAJE \"${1:kick}\" PREFIJO \"!\"",
+      "    PERMISOS EXPULSAR_MIEMBROS",
+      "    OPCION objetivo TIPO usuario DESCRIPCION \"Objetivo\" REQUERIDO",
+      "    ${2:RESPONDER \"Validado\"}",
+      "FIN COMANDO"
+    ],
+    "description": "Desde v0.9 PERMISOS se valida también en comandos con prefijo"
+  },
+  "Mostrar roles completos": {
+    "prefix": [
+      "rolesobjeto"
+    ],
+    "body": [
+      "VARIABLE ${1:roles} = ROLES_OBJETO(miembro)",
+      "VARIABLE ${2:masAlto} = ROL_MAS_ALTO(miembro)"
+    ],
+    "description": "Obtiene objetos de rol sin perder sus IDs ni posiciones"
+  },
+  "Comando ping de tres líneas": {
+    "prefix": [
+      "pingrapido",
+      "cmdsimple"
+    ],
+    "body": [
+      "COMANDO \"${1:ping}\"",
+      "    RESPONDER \"${2:Pong!}\"",
+      "FIN"
+    ],
+    "description": "Comando slash sin configuración extra"
+  },
+  "Expulsar con prefijo, sintaxis corta": {
+    "prefix": [
+      "kickfacil",
+      "kickrapido"
+    ],
+    "body": [
+      "COMANDO MENSAJE \"${1:kick}\" PREFIJO \"!\"",
+      "    PERMISOS EXPULSAR_MIEMBROS",
+      "    EXPULSAR argumento1 POR \"${2:Incumplimiento de normas}\"",
+      "    RESPONDER \"Miembro expulsado.\" SIN MENCIONES",
+      "FIN COMANDO"
+    ],
+    "description": "Comando !kick con argumento1 sin declaraciones, protegido por permisos y jerarquía"
+  },
+  "Banear con prefijo, sintaxis corta": {
+    "prefix": [
+      "banfacil",
+      "banrapido"
+    ],
+    "body": [
+      "COMANDO MENSAJE \"${1:ban}\" PREFIJO \"!\"",
+      "    PERMISOS BANEAR_MIEMBROS",
+      "    BANEAR argumento1 POR \"${2:Incumplimiento de normas}\"",
+      "    RESPONDER \"Miembro baneado.\" SIN MENCIONES",
+      "FIN COMANDO"
+    ],
+    "description": "Comando !ban con argumento1 sin declaraciones, protegido por permisos y jerarquía"
+  },
+  "Argumento de usuario con errores": {
+    "prefix": [
+      "argusuario",
+      "errorfaltante"
+    ],
+    "body": [
+      "ARGUMENTO ${1:objetivo} TIPO usuario REQUERIDO",
+      "    ERROR FALTANTE \"${2:Menciona al usuario.}\"",
+      "    ERROR INVALIDO \"${3:Usuario inválido.}\""
+    ],
+    "description": "Declaración de usuario tipado con errores personalizados"
+  },
+  "Argumento motivo completo": {
+    "prefix": [
+      "argmotivo",
+      "motivoresto"
+    ],
+    "body": [
+      "ARGUMENTO ${1:motivo} TIPO texto REQUERIDO RESTO MINIMO 3 MAXIMO 200",
+      "    ERROR FALTANTE \"${2:Indica el motivo.}\""
+    ],
+    "description": "Argumento que recoge texto con espacios con validación"
+  },
+  "Cooldown por usuario": {
+    "prefix": [
+      "cooldown",
+      "limitecomando"
+    ],
+    "body": [
+      "COOLDOWN \"${1:10s}\" POR USUARIO ERROR \"${2:Espera antes de volver a usar este comando.}\""
+    ],
+    "description": "Límite automático de uso por usuario, canal, servidor o global"
+  },
+  "Esperar respuesta del autor": {
+    "prefix": [
+      "esperarmensaje",
+      "preguntausuario"
+    ],
+    "body": [
+      "RESPONDER \"${1:¿Qué deseas responder?}\"",
+      "VARIABLE respuesta = ESPERAR_MENSAJE(autor, \"${2:10s}\")",
+      "SI DEFINIDO(respuesta) ENTONCES",
+      "    RESPONDER respuesta.content",
+      "SINO",
+      "    RESPONDER \"Se agotó el tiempo.\"",
+      "FIN SI"
+    ],
+    "description": "Espera un mensaje del autor con filtro y tiempo máximo"
+  },
+  "Personalizar error de permisos": {
+    "prefix": [
+      "errorpermisos"
+    ],
+    "body": [
+      "PERMISOS ${1:EXPULSAR_MIEMBROS}",
+      "ERROR PERMISOS \"${2:No tienes permiso para este comando.}\""
+    ],
+    "description": "Mensaje propio al fallar PERMISOS"
+  },
+  "Error propio con ayuda": {
+    "prefix": [
+      "respondererror"
+    ],
+    "body": [
+      "RESPONDER_ERROR(\"${1:Uso correcto: }\" + USO_COMANDO())"
+    ],
+    "description": "Detiene el comando con un error personalizado y ayuda"
+  },
+  "PseudoDiscord ticket privado": {
+    "prefix": "pdticket",
+    "body": [
+      "COMANDO \"ticket\"",
+      "    COOLDOWN \"20s\" POR USUARIO",
+      "    VARIABLE sala = CREAR_TICKET(\"${1:soporte}\")",
+      "    RESPONDER \"✅ Ticket abierto: \" + MENCIONAR_CANAL(sala) EFIMERO",
+      "FIN"
+    ],
+    "description": "Comando para crear un ticket privado"
+  },
+  "PseudoDiscord consulta HTTP JSON": {
+    "prefix": "pdhttp",
+    "body": [
+      "VARIABLE datos = HTTP_JSON(\"${1:https://jsonplaceholder.typicode.com/todos/1}\")",
+      "RESPONDER TEXTO(JSON_CAMINO(datos, \"${2:title}\", \"${3:sin datos}\"))"
+    ],
+    "description": "Consulta HTTPS externa con JSON"
+  },
+  "PseudoDiscord cooldown restante": {
+    "prefix": "pdcooldownrestante",
+    "body": [
+      "VARIABLE milisegundos = COOLDOWN_RESTANTE()",
+      "RESPONDER \"Tiempo restante: \" + TEXTO(milisegundos)"
+    ],
+    "description": "Consulta cooldown del comando en milisegundos"
+  },
+  "PseudoDiscord botón v0.15": {
+    "prefix": "pdboton",
+    "body": [
+      "VARIABLE boton = BOTON_SIMPLE(\"${1:Confirmar}\", \"${2:confirmar}\")",
+      "VARIABLE mensaje = MENSAJE_CON_BOTONES(\"${3:¿Continuar?}\", [boton])"
+    ],
+    "description": "Crea un botón y un payload sin JavaScript"
+  },
+  "PseudoDiscord estadísticas v0.15": {
+    "prefix": "pdestado",
+    "body": [
+      "COMANDO \"${1:estado}\"",
+      "    VARIABLE datos = DIAGNOSTICO_BOT()",
+      "    RESPONDER \"Bot listo: \" + TEXTO(datos.listo)",
+      "FIN"
+    ],
+    "description": "Diagnóstico básico del bot"
+  },
+  "PseudoDiscord paginación v0.15": {
+    "prefix": "pdpagina",
+    "body": [
+      "VARIABLE pagina = PAGINAR_LISTA(${1:datos}, ${2:1}, ${3:10})"
+    ],
+    "description": "Paginar listas fácilmente"
+  },
+  "PseudoDiscord opciones menú v0.15": {
+    "prefix": "pdmenu",
+    "body": [
+      "VARIABLE opciones = [OPCION_MENU(\"${1:Primera}\", \"${2:primera}\")]",
+      "VARIABLE menu = MENU_SIMPLE(\"${3:menu}\", opciones)"
+    ],
+    "description": "Construye un menú de Discord"
+  },
+  "Lambda Pseudo": {
+    "prefix": [
+      "lambda",
+      "mapearlambda"
+    ],
+    "body": [
+      "mapear(${1:lista}, (${2:x}) => ${3:x * 2})"
+    ],
+    "description": "Expresión lambda para funciones de orden superior"
+  }
+}
