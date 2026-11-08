@@ -1,0 +1,91 @@
+
+name: Bug Report
+description: Report a reproducible bug in pseudocord.js
+title: "[Bug]: "
+labels: ["bug"]
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting an issue.
+        Check existing issues before submitting a new report.
+        Do not include bot tokens, API keys, or other credentials.
+
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Specify the affected pseudocord.js version.
+      placeholder: "e.g. 0.30.3-alpha.1"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Affected component
+      options:
+        - Parser / Syntax
+        - Interpreter / Runtime
+        - Commands / Interactions
+        - Events
+        - Discord API Integration
+        - Plugins / Modules
+        - CLI
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug description
+      description: Describe the observed issue.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: Include a minimal code example and reproduction steps.
+      placeholder: |
+        1. Create a file containing...
+        2. Execute...
+        3. Observe...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Error logs
+      description: Include relevant logs or stack traces without credentials.
+      render: shell
+
+  - type: input
+    id: node
+    attributes:
+      label: Node.js version
+      placeholder: "e.g. v22.x"
+
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+      placeholder: "e.g. Windows 11, Ubuntu 24.04"
