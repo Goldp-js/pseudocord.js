@@ -50,7 +50,7 @@ FIN COMANDO
 Después crea `bot.mjs`:
 
 ```javascript
-import { PseudoClient } from 'pscord';
+import { PseudoClient } from 'pseudocord.js';
 
 const bot = new PseudoClient({
   token: process.env.DISCORD_TOKEN,
