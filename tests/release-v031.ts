@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { parse, parseExpressionText } from '../src/language/parser.js';
 import { validate } from '../src/language/validator.js';
 import { PseudoClient } from '../src/index.js';
+import { matchesCronExpression } from '../src/runtime/cron.js';
 
 const cases: Array<[string, () => void]> = [
   ['empty-program', () => {
@@ -16,6 +17,13 @@ const cases: Array<[string, () => void]> = [
   }],
   ['invalid-syntax', () => {
     assert.throws(() => parse('COMANDO BARRA'));
+  }],
+  ['cron-wildcard-step-day-restriction', () => {
+    const tuesday = new Date('2026-11-17T09:00:00.000Z');
+    const monday = new Date('2026-11-16T09:00:00.000Z');
+    assert.equal(matchesCronExpression('0 9 * * 1', tuesday, 'UTC'), false);
+    assert.equal(matchesCronExpression('0 9 */1 * 1', tuesday, 'UTC'), false);
+    assert.equal(matchesCronExpression('0 9 */1 * 1', monday, 'UTC'), true);
   }],
   ['public-client', () => {
     const client = new PseudoClient({ commands: { sync: 'manual' } });
