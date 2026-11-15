@@ -361,16 +361,7 @@
     "description": "Detiene el comando con un error personalizado y ayuda"
   },
   "ticket privado": {
-    "prefix": [
-      "p",
-      "d",
-      "t",
-      "i",
-      "c",
-      "k",
-      "e",
-      "t"
-    ],
+    "prefix": "pdticket",
     "body": [
       "COMANDO \"ticket\"",
       "    COOLDOWN \"20s\" POR USUARIO",
@@ -381,14 +372,7 @@
     "description": "Comando para crear un ticket privado"
   },
   "consulta HTTP JSON": {
-    "prefix": [
-      "p",
-      "d",
-      "h",
-      "t",
-      "t",
-      "p"
-    ],
+    "prefix": "pdhttp",
     "body": [
       "VARIABLE datos = HTTP_JSON(\"${1:https://jsonplaceholder.typicode.com/todos/1}\")",
       "RESPONDER TEXTO(JSON_CAMINO(datos, \"${2:title}\", \"${3:sin datos}\"))"
@@ -396,26 +380,7 @@
     "description": "Consulta HTTPS externa con JSON"
   },
   "cooldown restante": {
-    "prefix": [
-      "p",
-      "d",
-      "c",
-      "o",
-      "o",
-      "l",
-      "d",
-      "o",
-      "w",
-      "n",
-      "r",
-      "e",
-      "s",
-      "t",
-      "a",
-      "n",
-      "t",
-      "e"
-    ],
+    "prefix": "pdcooldownrestante",
     "body": [
       "VARIABLE milisegundos = COOLDOWN_RESTANTE()",
       "RESPONDER \"Tiempo restante: \" + TEXTO(milisegundos)"
@@ -423,15 +388,7 @@
     "description": "Consulta cooldown del comando en milisegundos"
   },
   "botón": {
-    "prefix": [
-      "p",
-      "d",
-      "b",
-      "o",
-      "t",
-      "o",
-      "n"
-    ],
+    "prefix": "pdboton",
     "body": [
       "VARIABLE boton = CREAR_BOTON(\"${1:Confirmar}\", \"${2:confirmar}\")",
       "VARIABLE mensaje = MENSAJE_CON_BOTONES(\"${3:¿Continuar?}\", [boton])"
@@ -439,16 +396,7 @@
     "description": "Crea un botón y un payload sin JavaScript"
   },
   "estadísticas": {
-    "prefix": [
-      "p",
-      "d",
-      "e",
-      "s",
-      "t",
-      "a",
-      "d",
-      "o"
-    ],
+    "prefix": "pdestado",
     "body": [
       "COMANDO \"${1:estado}\"",
       "    VARIABLE datos = DIAGNOSTICO_BOT()",
@@ -458,30 +406,14 @@
     "description": "Diagnóstico básico del bot"
   },
   "paginación": {
-    "prefix": [
-      "p",
-      "d",
-      "p",
-      "a",
-      "g",
-      "i",
-      "n",
-      "a"
-    ],
+    "prefix": "pdpagina",
     "body": [
       "VARIABLE pagina = PAGINAR_LISTA(${1:datos}, ${2:1}, ${3:10})"
     ],
     "description": "Paginar listas fácilmente"
   },
   "opciones menú": {
-    "prefix": [
-      "p",
-      "d",
-      "m",
-      "e",
-      "n",
-      "u"
-    ],
+    "prefix": "pdmenu",
     "body": [
       "VARIABLE opciones = [OPCION_MENU(\"${1:Primera}\", \"${2:primera}\")]",
       "VARIABLE menu = CREAR_MENU(\"${3:menu}\", opciones)"
