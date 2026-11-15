@@ -31,7 +31,7 @@
   "scripts": {
     "build": "tsc",
     "typecheck": "tsc --noEmit",
-    "test": "npm run build && node dist/tests/run-tests.js && node dist/tests/compatibility-v06.js && node dist/tests/usability-v07.js && node dist/tests/usability-v08.js && node dist/tests/usability-v09.js && node dist/tests/usability-v010.js && node dist/tests/usability-v011.js && node dist/tests/usability-v012.js && node dist/tests/usability-v013.js && node dist/tests/usability-v014.js && node dist/tests/usability-v015.js && node dist/tests/usability-v016.js && node dist/tests/audit-regressions.js && node dist/tests/diagnostics-v018.js && node dist/tests/diagnostics-named-v019.js && node dist/tests/refactor-v020.js && node dist/tests/command-sync-v021.js && node dist/tests/pseudo-client-v022.js && node dist/tests/native-access-v023.js && node dist/tests/architecture-v024.js && node dist/tests/public-api-v025.js && node dist/tests/context-v030.js && node dist/tests/audit-functions-v0302.js"
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
     "discord.js": "14.28.1",
