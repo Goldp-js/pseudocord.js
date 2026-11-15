@@ -15,7 +15,7 @@ export interface CommandSyncOptions {
 }
 
 const serial = new Map<unknown, Promise<void>>();
-async function oneAtATime<T>(key: unknown, action: () => Promise<T>): Promise<T> {
+async function serializeSyncOperation<T>(key: unknown, action: () => Promise<T>): Promise<T> {
   const previous = serial.get(key) ?? Promise.resolve();
   let done!: () => void;
   const next = new Promise<void>(resolve => {done = resolve;});
@@ -25,12 +25,12 @@ async function oneAtATime<T>(key: unknown, action: () => Promise<T>): Promise<T>
   try {return await action();}
   finally {done(); if(serial.get(key)===chain)serial.delete(key);}
 }
-function entriesOf(result: any): any[] {
+function collectionEntries(result: any): any[] {
   if (result?.values && typeof result.values === 'function') return Array.from(result.values());
   if (Array.isArray(result)) return result;
   return Object.values(result ?? {});
 }
-function validate(commands: readonly any[], mode: CommandSyncMode, manager: any): void {
+function validateSyncInput(commands: readonly any[], mode: CommandSyncMode, manager: any): void {
   if (!['upsert','replace','off'].includes(mode)) throw new Error(`CommandSync-ModoInvalido-Error: '${String(mode)}'.`);
   if (mode === 'off') return;
   const seen = new Set<string>();
@@ -50,17 +50,17 @@ function validate(commands: readonly any[], mode: CommandSyncMode, manager: any)
 export async function synchronizeApplicationCommands(
   manager: any, commands: readonly any[], mode: CommandSyncMode='upsert', options: CommandSyncOptions={}
 ): Promise<CommandSyncStats> {
-  const initial = (): CommandSyncStats => ({created:0, updated:0, unchanged:0, deleted:0});
-  validate(commands,mode,manager); // Preflight before GET, POST or PATCH.
-  if (mode === 'off') return initial();
+  const createEmptySyncStats = (): CommandSyncStats => ({created:0, updated:0, unchanged:0, deleted:0});
+  validateSyncInput(commands,mode,manager); // Preflight before GET, POST or PATCH.
+  if (mode === 'off') return createEmptySyncStats();
   if (options.pruneManaged && !options.cache) throw new Error('CommandSync-Propiedad-Error: PruneManaged requiere una caché persistente.');
   if (options.pruneManaged && mode === 'replace') throw new Error('CommandSync-Modo-Error: PruneManaged no se utiliza con replace.');
   if (options.pruneManaged && typeof manager.delete !== 'function') throw new Error('CommandSync-APIIncompleta-Error: commands.delete() no disponible.');
 
   const key = options.cache ? cacheFile(options.cache) : manager;
-  return oneAtATime(key, async () => {
-    const execute = async (): Promise<CommandSyncStats> => {
-      const stats = initial();
+  return serializeSyncOperation(key, async () => {
+    const executeSyncOperation = async (): Promise<CommandSyncStats> => {
+      const stats = createEmptySyncStats();
       const scope = options.cache ? cacheScope(options.cache) : '';
       const path = options.cache ? cacheFile(options.cache) : '';
       const previous = options.cache ? await readCache(path, scope) : undefined;
@@ -76,7 +76,7 @@ export async function synchronizeApplicationCommands(
         return stats;
       }
 
-      const existing = entriesOf(await manager.fetch());
+      const existing = collectionEntries(await manager.fetch());
       const remote = new Map<string, any>();
       for (const item of existing) remote.set(commandKey(item), item);
       const desired = new Map(commands.map(c => [commandKey(c),c]));
@@ -134,6 +134,6 @@ export async function synchronizeApplicationCommands(
       }
       return stats;
     };
-    return options.cache ? withFileLock(cacheFile(options.cache),execute) : execute();
+    return options.cache ? withFileLock(cacheFile(options.cache),executeSyncOperation) : executeSyncOperation();
   });
 }

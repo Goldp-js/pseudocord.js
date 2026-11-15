@@ -44,7 +44,7 @@ export async function openPersistentStore(config:StorageConfig):Promise<Persiste
     if(!config.url)throw new Error('Configuración Redis: variable de conexión REDIS_URL ausente.');
     let mod:any;try{const name='redis';mod=await import(name);}catch{throw new Error('Dependencia Redis ausente: paquete npm redis.');}
     const { RedisStore } = await import('./redis.js');
-    const client=mod.createClient({url:config.url});client.on('error',(e:Error)=>console.error('[PseudoDiscord/Redis]',e.message));await client.connect();return new RedisStore(client,config.namespace);
+    const client=mod.createClient({url:config.url});client.on('error',(e:Error)=>console.error('[pseudocord.js/Redis]',e.message));await client.connect();return new RedisStore(client,config.namespace);
   }
   throw new Error(`Persistencia: proveedor no reconocido '${(config as StorageConfig).provider}'.`);
 }

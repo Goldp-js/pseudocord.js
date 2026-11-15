@@ -17,3 +17,11 @@ export function checkIncrement(amount:number):void {
     throw new Error('INCREMENTAR: incremento no finito o fuera del rango numérico seguro.');
 }
 
+
+/** All backends must return the same finite safe numeric domain. */
+export function validateIncrementResult(value:unknown):number {
+  const n=Number(value);
+  if (!Number.isFinite(n) || Math.abs(n)>Number.MAX_SAFE_INTEGER)
+    throw new RangeError('Persistencia: resultado del incremento fuera del rango numérico seguro.');
+  return n;
+}

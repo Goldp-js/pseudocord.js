@@ -17,7 +17,7 @@ import type { TypeNode, PrimitiveTypeName } from '../ast/types.js';
 import type { Token } from './token.js';
 import { upper } from './token.js';
 import { lex } from './lexer.js';
-import { PseudoDiscordError } from './errors.js';
+import { PseudocordError } from './errors.js';
 import { EVENT_ALIASES, PRECEDENCE, BUILDER_WORDS, BUILDER_FLAGS, BUILDER_ENUMS } from './parser-tables.js';
 
 export class Parser {
@@ -26,7 +26,7 @@ export class Parser {
 
   parseProgram(): Program {
     const body: TopLevelDeclaration[]=[]; this.skipLines();
-    while(!this.is('eof')) { body.push(this.parseTopLevel()); this.skipLines(); }
+    while(!this.isTokenKind('eof')) { body.push(this.parseTopLevel()); this.skipLines(); }
     // version corresponde al esquema AST, no a la versión del paquete npm.
     return {kind:'Program',version:'0.11',body};
   }
@@ -49,26 +49,26 @@ export class Parser {
     if(this.matchWord('ENUM')) return this.parseEnum();
     if(this.matchWord('ASYNC')||this.matchWord('ASINCRONA')||this.matchWord('ASINCRONO')) { this.expectWord('FUNCION'); return this.parseFunction(true); }
     if(this.matchWord('AL')) {
-      if(this.matchWord('PREPARAR')){const start=this.prev().span;this.endLine();const body=this.parseStatementsUntil(new Set(['FIN']));this.expectWord('FIN');this.optionalWord('PREPARAR');this.endLine();return {kind:'StartupDeclaration',body,span:this.merge(start,this.prev().span)};}
+      if(this.matchWord('PREPARAR')){const start=this.prev().span;this.endLine();const body=this.parseStatementsUntil(new Set(['FIN']));this.expectWord('FIN');this.optionalWord('PREPARAR');this.endLine();return {kind:'StartupDeclaration',body,span:this.mergeSourceSpans(start,this.prev().span)};}
       if(this.checkWord('BOTON')||this.checkWord('MENU')||this.checkWord('SELECT')||this.checkWord('MODAL')||this.checkWord('AUTOCOMPLETAR')) return this.parseComponentHandler();
-      return this.parseAliasedEvent();
+      return this.parseMappedEventDeclaration();
     }
-    if(this.matchWord('EVENTO')) return this.parseRawEvent();
-    if(this.matchWord('COMANDO')) return this.parseCommandAny();
+    if(this.matchWord('EVENTO')) return this.parseNativeEventDeclaration();
+    if(this.matchWord('COMANDO')) return this.parseCommandDeclaration();
     if(this.matchWord('CADA')) return this.parseSchedulerEvery();
     if(this.matchWord('TAREA')) return this.parseSchedulerTask();
     throw this.error(`Declaración no reconocida: '${this.peek().value}'. Se esperaba IMPORTAR, VARIABLE, CONSTANTE, FUNCION, AL, EVENTO, COMANDO, CADA o TAREA.`);
   }
 
   private parseImport():import('../ast/declarations.js').ImportDeclaration {
-    const start=this.prev().span;const source=this.expectString();let alias:string|undefined;if(this.matchWord('COMO'))alias=this.expectWordAny();this.endLine();return {kind:'ImportDeclaration',source,alias,span:this.merge(start,this.prev().span)};
+    const start=this.prev().span;const source=this.expectString();let alias:string|undefined;if(this.matchWord('COMO'))alias=this.expectWordAny();this.endLine();return {kind:'ImportDeclaration',source,alias,span:this.mergeSourceSpans(start,this.prev().span)};
   }
 
   private parseTopVariable(): VariableTopLevelDeclaration {
     const start=this.peek().span; const d=upper(this.advance().value) as 'VARIABLE'|'CONSTANTE'; const name=this.expectWordAny();
     let typeAnnotation:TypeNode|undefined; if(this.matchP(':')) typeAnnotation=this.parseType();
     let value:Expression|undefined; if(this.matchOp('=')||this.matchOp('<-')) value=this.parseExpression(); this.endLine();
-    return {kind:'VariableTopLevelDeclaration',name,declaration:d,value,typeAnnotation,span:this.merge(start,this.prev().span)};
+    return {kind:'VariableTopLevelDeclaration',name,declaration:d,value,typeAnnotation,span:this.mergeSourceSpans(start,this.prev().span)};
   }
 
   private parseFunction(async:boolean, terminator='FUNCION'): FunctionDeclaration {
@@ -87,20 +87,20 @@ export class Parser {
     }
     let returnType:TypeNode|undefined; if(this.matchP(':')) returnType=this.parseType();
     this.endLine(); const body=this.parseStatementsUntil(new Set(['FIN'])); this.expectWord('FIN'); this.optionalWord(terminator); this.endLine();
-    return {kind:'FunctionDeclaration',name,parameters,returnType,body,async,span:this.merge(start,this.prev().span)};
+    return {kind:'FunctionDeclaration',name,parameters,returnType,body,async,span:this.mergeSourceSpans(start,this.prev().span)};
   }
 
   private parseDefine(topLevel:boolean):VariableTopLevelDeclaration|VariableDeclarationStatement {
     const start=this.prev().span,name=this.expectWordAny();
     this.expectWord('COMO');const typeAnnotation=this.parseType();this.endLine();
-    return topLevel?{kind:'VariableTopLevelDeclaration',name,declaration:'VARIABLE',typeAnnotation,span:this.merge(start,this.prev().span)}:
-      {kind:'VariableDeclarationStatement',name,declaration:'VARIABLE',typeAnnotation,span:this.merge(start,this.prev().span)};
+    return topLevel?{kind:'VariableTopLevelDeclaration',name,declaration:'VARIABLE',typeAnnotation,span:this.mergeSourceSpans(start,this.prev().span)}:
+      {kind:'VariableDeclarationStatement',name,declaration:'VARIABLE',typeAnnotation,span:this.mergeSourceSpans(start,this.prev().span)};
   }
 
   private parseRecord():RecordDeclaration {
     const start=this.prev().span, name=this.expectWordAny();this.endLine();
     const fields:RecordDeclaration['fields'][number][]=[]; const seen=new Set<string>();this.skipLines();
-    while(!this.checkWord('FIN')&&!this.is('eof')){
+    while(!this.checkWord('FIN')&&!this.isTokenKind('eof')){
       const field=this.expectWordAny(), key=upper(field);
       if(seen.has(key))throw this.error(`REGISTRO: campo duplicado '${field}'.`);seen.add(key);
       if(['__PROTO__','CONSTRUCTOR','PROTOTYPE'].includes(key))throw this.error(`REGISTRO: identificador reservado '${field}'.`);
@@ -109,22 +109,22 @@ export class Parser {
       this.endLine();fields.push({name:field,type,defaultValue});if(fields.length>512)throw this.error('REGISTRO: límite excedido (512 campos).');this.skipLines();
     }
     this.expectWord('FIN');this.optionalWord('REGISTRO');this.endLine();
-    return {kind:'RecordDeclaration',name,fields,span:this.merge(start,this.prev().span)};
+    return {kind:'RecordDeclaration',name,fields,span:this.mergeSourceSpans(start,this.prev().span)};
   }
 
   private parseEnum():EnumDeclaration {
     const start=this.prev().span,name=this.expectWordAny();this.endLine();
     const members:EnumDeclaration['members'][number][]=[];const seen=new Set<string>();this.skipLines();
-    while(!this.checkWord('FIN')&&!this.is('eof')){
+    while(!this.checkWord('FIN')&&!this.isTokenKind('eof')){
       const member=this.expectWordAny(),key=upper(member);
       if(seen.has(key))throw this.error(`ENUM: miembro duplicado '${member}'.`);seen.add(key);
       if(['__PROTO__','CONSTRUCTOR','PROTOTYPE'].includes(key))throw this.error(`ENUM: identificador reservado '${member}'.`);
       let value:string|number|undefined;
-      if(this.matchOp('=')){const t=this.peek();if(t.kind==='number'){value=Number(this.numberValue(this.advance().value));if(!Number.isFinite(value))throw this.error('ENUM: valor numérico no finito.');}else if(t.kind==='string')value=this.advance().value;else throw this.error('ENUM: valor incompatible; se esperaba literal de texto o número.');}
+      if(this.matchOp('=')){const t=this.peek();if(t.kind==='number'){value=Number(this.parseNumericLiteralValue(this.advance().value));if(!Number.isFinite(value))throw this.error('ENUM: valor numérico no finito.');}else if(t.kind==='string')value=this.advance().value;else throw this.error('ENUM: valor incompatible; se esperaba literal de texto o número.');}
       this.endLine();members.push({name:member,value});if(members.length>4096)throw this.error('ENUM: límite excedido (4096 miembros).');this.skipLines();
     }
     this.expectWord('FIN');this.optionalWord('ENUM');this.endLine();
-    return {kind:'EnumDeclaration',name,members,span:this.merge(start,this.prev().span)};
+    return {kind:'EnumDeclaration',name,members,span:this.mergeSourceSpans(start,this.prev().span)};
   }
 
   private parseType():TypeNode {
@@ -135,18 +135,18 @@ export class Parser {
     return out;
   }
 
-  private parseAliasedEvent(): DiscordEventDeclaration {
+  private parseMappedEventDeclaration(): DiscordEventDeclaration {
     const start=this.prev().span; const parts:string[]=[];
-    while(!this.lineEnd() && this.peek().kind==='word') {
+    while(!this.isStatementTerminator() && this.peek().kind==='word') {
       const u=upper(this.peek().value); if(parts.length && !EVENT_ALIASES[parts.concat(u).join('_')]) break;
       parts.push(u); this.advance();
-      if(EVENT_ALIASES[parts.join('_')] && !this.lineEnd()) { const combined=parts.concat(upper(this.peek().value)).join('_'); if(!EVENT_ALIASES[combined]) break; }
+      if(EVENT_ALIASES[parts.join('_')] && !this.isStatementTerminator()) { const combined=parts.concat(upper(this.peek().value)).join('_'); if(!EVENT_ALIASES[combined]) break; }
     }
     const alias=parts.join('_'); const mapped=EVENT_ALIASES[alias];
     if(!mapped) throw this.errorAt(start,`Evento abreviado desconocido: AL ${parts.join(' ')}`,'Parser-EventoAbreviado-Error');
-    const params:string[]=[]; while(!this.lineEnd()) { if(this.matchP(',')) continue; params.push(this.expectWordAny()); }
+    const params:string[]=[]; while(!this.isStatementTerminator()) { if(this.matchP(',')) continue; params.push(this.expectWordAny()); }
     this.endLine(); const body=this.parseStatementsUntil(new Set(['FIN'])); this.expectWord('FIN'); this.optionalWord('AL'); this.endLine();
-    return {kind:'DiscordEventDeclaration',event:mapped.event,parameters:params.length?params:mapped.params,body,span:this.merge(start,this.prev().span)};
+    return {kind:'DiscordEventDeclaration',event:mapped.event,parameters:params.length?params:mapped.params,body,span:this.mergeSourceSpans(start,this.prev().span)};
   }
 
   private parseComponentHandler():DiscordComponentHandlerDeclaration {
@@ -157,18 +157,18 @@ export class Parser {
     else if(k==='MODAL'){componentKind='modal';customId=this.expectStringOrWord();}
     else {componentKind='autocomplete';commandName=this.expectStringOrWord();optionName=this.expectStringOrWord();}
     this.endLine(); const body=this.parseStatementsUntil(new Set(['FIN'])); this.expectWord('FIN'); this.optionalWord('AL'); this.endLine();
-    return {kind:'DiscordComponentHandlerDeclaration',componentKind,customId,commandName,optionName,body,span:this.merge(start,this.prev().span)};
+    return {kind:'DiscordComponentHandlerDeclaration',componentKind,customId,commandName,optionName,body,span:this.mergeSourceSpans(start,this.prev().span)};
   }
 
-  private parseRawEvent(): DiscordEventDeclaration {
+  private parseNativeEventDeclaration(): DiscordEventDeclaration {
     const start=this.prev().span; const event=this.expectStringOrWord(); const parameters:string[]=[];
     if(this.matchP('(')) { if(!this.checkP(')')) do parameters.push(this.expectWordAny()); while(this.matchP(',')); this.expectP(')'); }
-    else while(!this.lineEnd()){ if(this.matchP(',')) continue; parameters.push(this.expectWordAny()); }
+    else while(!this.isStatementTerminator()){ if(this.matchP(',')) continue; parameters.push(this.expectWordAny()); }
     this.endLine(); const body=this.parseStatementsUntil(new Set(['FIN'])); this.expectWord('FIN'); this.optionalWord('EVENTO'); this.endLine();
-    return {kind:'DiscordEventDeclaration',event,parameters,body,span:this.merge(start,this.prev().span)};
+    return {kind:'DiscordEventDeclaration',event,parameters,body,span:this.mergeSourceSpans(start,this.prev().span)};
   }
 
-  private parseCommandAny():DiscordCommandDeclaration|DiscordContextCommandDeclaration {
+  private parseCommandDeclaration():DiscordCommandDeclaration|DiscordContextCommandDeclaration {
     const start=this.prev().span;
     if(this.matchWord('USUARIO')) return this.parseContextCommand(start,'usuario');
     if(this.matchWord('CONTEXTO')) { if(this.matchWord('USUARIO')) return this.parseContextCommand(start,'usuario'); this.expectWord('MENSAJE'); return this.parseContextCommand(start,'mensaje'); }
@@ -179,7 +179,7 @@ export class Parser {
 
   private parseContextCommand(start:SourceSpan,contextKind:'usuario'|'mensaje'):DiscordContextCommandDeclaration {
     const name=this.expectStringOrWord(); this.endLine(); const body=this.parseStatementsUntil(new Set(['FIN'])); this.expectWord('FIN'); this.optionalWord('COMANDO'); this.endLine();
-    return {kind:'DiscordContextCommandDeclaration',contextKind,name,body,span:this.merge(start,this.prev().span)};
+    return {kind:'DiscordContextCommandDeclaration',contextKind,name,body,span:this.mergeSourceSpans(start,this.prev().span)};
   }
 
   private parseSlashCommand(start:SourceSpan):DiscordCommandDeclaration {
@@ -187,7 +187,7 @@ export class Parser {
     const options:DiscordCommandOptionDeclaration[]=[]; const body:Statement[]=[]; const subcommands:DiscordSubcommandDeclaration[]=[]; const groups:DiscordSubcommandGroupDeclaration[]=[];
     let dmPermission:boolean|undefined, nsfw:boolean|undefined; const defaultMemberPermissions:string[]=[]; let permissionError:string|undefined;let cooldown:import('../ast/declarations.js').CommandCooldown|undefined;
     this.skipLines();
-    while(!this.checkWord('FIN')&&!this.is('eof')) {
+    while(!this.checkWord('FIN')&&!this.isTokenKind('eof')) {
       if(this.matchWord('DESCRIPCION')) {description=this.expectString();this.endLine();continue;}
       if(this.matchWord('OPCION')||this.matchWord('ARGUMENTO')) {options.push(this.parseCommandOption());continue;}
       if(this.matchWord('SUBCOMANDO')) {subcommands.push(this.parseSubcommand());continue;}
@@ -200,19 +200,19 @@ export class Parser {
       body.push(this.parseStatement()); this.skipLines();
     }
     this.expectWord('FIN'); this.optionalWord('COMANDO'); this.endLine();
-    return {kind:'DiscordCommandDeclaration',commandKind:'chat-input',name,description,options,subcommands,groups,body,dmPermission,nsfw,defaultMemberPermissions,permissionError,cooldown,span:this.merge(start,this.prev().span)};
+    return {kind:'DiscordCommandDeclaration',commandKind:'chat-input',name,description,options,subcommands,groups,body,dmPermission,nsfw,defaultMemberPermissions,permissionError,cooldown,span:this.mergeSourceSpans(start,this.prev().span)};
   }
 
   private parseMessageCommand(start:SourceSpan):DiscordCommandDeclaration {
     const name=this.expectStringOrWord(); let prefix='!'; let prefixExplicit=false; let description=`Comando ${prefix}${name}`; const aliases:string[]=[];
-    while(!this.lineEnd()) {
+    while(!this.isStatementTerminator()) {
       if(this.matchWord('PREFIJO')) {prefix=this.expectStringOrWord();prefixExplicit=true;}
       else if(this.matchWord('DESCRIPCION')) description=this.expectString();
       else if(this.matchWord('ALIAS')||this.matchWord('ALIASES')) {do aliases.push(this.expectStringOrWord());while(this.matchP(','));}
       else break;
     }
     this.endLine(); const options:DiscordCommandOptionDeclaration[]=[]; const body:Statement[]=[]; const defaultMemberPermissions:string[]=[];let permissionError:string|undefined;let cooldown:import('../ast/declarations.js').CommandCooldown|undefined; this.skipLines();
-    while(!this.checkWord('FIN')&&!this.is('eof')) {
+    while(!this.checkWord('FIN')&&!this.isTokenKind('eof')) {
       if(this.matchWord('DESCRIPCION')) {description=this.expectString();this.endLine();continue;}
       if(this.matchWord('PREFIJO')) {prefix=this.expectStringOrWord();prefixExplicit=true;this.endLine();continue;}
       if(this.matchWord('ALIAS')||this.matchWord('ALIASES')) {do aliases.push(this.expectStringOrWord());while(this.matchP(','));this.endLine();continue;}
@@ -223,7 +223,7 @@ export class Parser {
       body.push(this.parseStatement()); this.skipLines();
     }
     this.expectWord('FIN'); this.optionalWord('COMANDO'); this.endLine();
-    return {kind:'DiscordCommandDeclaration',commandKind:'message-prefix',name,description,options,body,prefix,prefixExplicit,aliases,defaultMemberPermissions,permissionError,cooldown,span:this.merge(start,this.prev().span)};
+    return {kind:'DiscordCommandDeclaration',commandKind:'message-prefix',name,description,options,body,prefix,prefixExplicit,aliases,defaultMemberPermissions,permissionError,cooldown,span:this.mergeSourceSpans(start,this.prev().span)};
   }
 
   private parseCommandCooldown():import('../ast/declarations.js').CommandCooldown {
@@ -246,13 +246,13 @@ export class Parser {
   private parseSubcommand():DiscordSubcommandDeclaration {
     const name=this.expectStringOrWord(); let description=`Subcomando ${name}`; if(this.matchWord('DESCRIPCION'))description=this.expectString(); this.endLine();
     const options:DiscordCommandOptionDeclaration[]=[]; const body:Statement[]=[]; this.skipLines();
-    while(!this.checkWord('FIN')&&!this.is('eof')) { if(this.matchWord('DESCRIPCION')){description=this.expectString();this.endLine();continue;} if(this.matchWord('OPCION')||this.matchWord('ARGUMENTO')){options.push(this.parseCommandOption());continue;} body.push(this.parseStatement()); this.skipLines(); }
+    while(!this.checkWord('FIN')&&!this.isTokenKind('eof')) { if(this.matchWord('DESCRIPCION')){description=this.expectString();this.endLine();continue;} if(this.matchWord('OPCION')||this.matchWord('ARGUMENTO')){options.push(this.parseCommandOption());continue;} body.push(this.parseStatement()); this.skipLines(); }
     this.expectWord('FIN'); this.optionalWord('SUBCOMANDO'); this.endLine(); return {name,description,options,body};
   }
 
   private parseSubcommandGroup():DiscordSubcommandGroupDeclaration {
     const name=this.expectStringOrWord(); let description=`Grupo ${name}`; if(this.matchWord('DESCRIPCION'))description=this.expectString(); this.endLine(); const subcommands:DiscordSubcommandDeclaration[]=[]; this.skipLines();
-    while(!this.checkWord('FIN')&&!this.is('eof')) { if(this.matchWord('DESCRIPCION')){description=this.expectString();this.endLine();continue;} this.expectWord('SUBCOMANDO'); subcommands.push(this.parseSubcommand()); this.skipLines(); }
+    while(!this.checkWord('FIN')&&!this.isTokenKind('eof')) { if(this.matchWord('DESCRIPCION')){description=this.expectString();this.endLine();continue;} this.expectWord('SUBCOMANDO'); subcommands.push(this.parseSubcommand()); this.skipLines(); }
     this.expectWord('FIN'); this.optionalWord('GRUPO'); this.endLine(); return {name,description,subcommands};
   }
 
@@ -271,7 +271,7 @@ export class Parser {
       if(Object.hasOwn(errors,code))throw this.error(`OPCION '${name}': mensaje ERROR ${code.toUpperCase()} duplicado.`);
       errors[code as keyof typeof errors]=this.expectString();
     };
-    while(!this.lineEnd()) {
+    while(!this.isStatementTerminator()) {
       if(this.matchWord('TIPO')) kind=upper(this.expectWordAny()).toLowerCase() as any;
       else if(this.matchWord('DESCRIPCION')) description=this.expectString();
       else if(this.matchWord('REQUERIDO')||this.matchWord('OBLIGATORIO')) required=true;
@@ -283,7 +283,7 @@ export class Parser {
       else if(this.matchWord('MINIMO')) {minBound=this.expectNumberLiteral();}
       else if(this.matchWord('MAXIMO')) {maxBound=this.expectNumberLiteral();}
       else if(this.matchWord('CANALES')) {do channelTypes.push(this.expectStringOrWord());while(this.matchP(','));}
-      else if(this.matchWord('ELECCION')||this.matchWord('OPCIONES')) { const cn=this.expectStringOrWord(); this.expectOpOrP('='); const v=this.peek().kind==='number'?this.numberValue(this.advance().value):this.expectStringOrWord(); choices.push({name:cn,value:v}); }
+      else if(this.matchWord('ELECCION')||this.matchWord('OPCIONES')) { const cn=this.expectStringOrWord(); this.expectOpOrP('='); const v=this.peek().kind==='number'?this.parseNumericLiteralValue(this.advance().value):this.expectStringOrWord(); choices.push({name:cn,value:v}); }
       else throw this.error(`OPCION: atributo no reconocido '${this.peek().value}'.`);
     }
     if(kind==='texto'){minLength=minBound;maxLength=maxBound;}
@@ -299,17 +299,17 @@ export class Parser {
   }
 
   private parseSchedulerEvery():SchedulerDeclaration {
-    const start=this.prev().span; const every=this.parseExpression(); this.endLine(); const body=this.parseStatementsUntil(new Set(['FIN'])); this.expectWord('FIN'); this.optionalWord('CADA'); this.endLine(); return {kind:'SchedulerDeclaration',every,body,span:this.merge(start,this.prev().span)};
+    const start=this.prev().span; const every=this.parseExpression(); this.endLine(); const body=this.parseStatementsUntil(new Set(['FIN'])); this.expectWord('FIN'); this.optionalWord('CADA'); this.endLine(); return {kind:'SchedulerDeclaration',every,body,span:this.mergeSourceSpans(start,this.prev().span)};
   }
   private parseSchedulerTask():SchedulerDeclaration {
-    const start=this.prev().span; const name=this.lineEnd()?undefined:this.expectStringOrWord(); let every:Expression|undefined,at:Expression|undefined,cron:string|undefined;
-    if(!this.lineEnd()) {if(this.matchWord('CADA'))every=this.parseExpression(); else if(this.matchWord('A_LAS')||this.matchWord('A'))at=this.parseExpression(); else if(this.matchWord('CRON'))cron=this.expectString();}
-    this.endLine(); const body=this.parseStatementsUntil(new Set(['FIN'])); this.expectWord('FIN'); this.optionalWord('TAREA'); this.endLine(); return {kind:'SchedulerDeclaration',name,every,at,cron,body,span:this.merge(start,this.prev().span)};
+    const start=this.prev().span; const name=this.isStatementTerminator()?undefined:this.expectStringOrWord(); let every:Expression|undefined,at:Expression|undefined,cron:string|undefined;
+    if(!this.isStatementTerminator()) {if(this.matchWord('CADA'))every=this.parseExpression(); else if(this.matchWord('A_LAS')||this.matchWord('A'))at=this.parseExpression(); else if(this.matchWord('CRON'))cron=this.expectString();}
+    this.endLine(); const body=this.parseStatementsUntil(new Set(['FIN'])); this.expectWord('FIN'); this.optionalWord('TAREA'); this.endLine(); return {kind:'SchedulerDeclaration',name,every,at,cron,body,span:this.mergeSourceSpans(start,this.prev().span)};
   }
 
   private parseStatementsUntil(terminators:Set<string>): Statement[] {
     const body:Statement[]=[]; this.skipLines();
-    while(!this.is('eof') && !(this.peek().kind==='word' && terminators.has(upper(this.peek().value)))) { body.push(this.parseStatement()); this.skipLines(); }
+    while(!this.isTokenKind('eof') && !(this.peek().kind==='word' && terminators.has(upper(this.peek().value)))) { body.push(this.parseStatement()); this.skipLines(); }
     return body;
   }
 
@@ -328,7 +328,7 @@ export class Parser {
     if(this.matchWord('PARALELO')) return this.parseParallel();
     if(this.matchWord('CARRERA')) return this.parseRace();
     if(this.matchWord('TIEMPO_LIMITE')||this.matchWord('TIMEOUT')) return this.parseTimeout();
-    if(this.matchWord('RETORNAR')) { const span=this.prev().span; const value=this.lineEnd()?undefined:this.parseExpression(); this.endLine(); return {kind:'ReturnStatement',value,span}; }
+    if(this.matchWord('RETORNAR')) { const span=this.prev().span; const value=this.isStatementTerminator()?undefined:this.parseExpression(); this.endLine(); return {kind:'ReturnStatement',value,span}; }
     if(this.matchWord('ROMPER')) { const span=this.prev().span; this.endLine(); return {kind:'BreakStatement',span}; }
     if(this.matchWord('CONTINUAR')) { const span=this.prev().span; this.endLine(); return {kind:'ContinueStatement',span}; }
     if(this.matchWord('LANZAR')) { const span=this.prev().span; const value=this.parseExpression(); this.endLine(); return {kind:'ThrowStatement',value,span}; }
@@ -336,7 +336,7 @@ export class Parser {
     if(this.matchWord('ESPERAR')) { const span=this.prev().span; const duration=this.parseExpression(); this.endLine(); return {kind:'WaitStatement',duration,span}; }
     if(this.matchWord('JAVASCRIPT')||this.matchWord('JS')) {
       const start=this.prev().span;const code=this.expectString();this.endLine();
-      return {kind:'JavaScriptStatement',code,span:this.merge(start,this.prev().span)};
+      return {kind:'JavaScriptStatement',code,span:this.mergeSourceSpans(start,this.prev().span)};
     }
     if(this.matchWord('EMITIR')) {const span=this.prev().span;const event=this.expectStringOrWord();const args:Expression[]=[];if(this.matchP(','))do args.push(this.parseExpression());while(this.matchP(','));this.endLine();return {kind:'EmitStatement',event,arguments:args,span};}
     if(this.matchWord('IMPRIMIR')||this.matchWord('ESCRIBIR')||this.matchWord('LOG')) { const span=this.prev().span; const values=this.parseExpressionListToLine(); this.endLine(); return {kind:'LogStatement',level:'info',values,span}; }
@@ -349,75 +349,75 @@ export class Parser {
     const start=this.peek().span; const save=this.i; const possibleTarget=this.parseExpression(4);
     if(this.peek().kind==='operator' && ['=','<-','+=','-=','*=','/=','%=','**='].includes(this.peek().value)) {
       const op=this.advance().value; const value=this.parseExpression(); this.endLine();
-      if(op==='='||op==='<-') return {kind:'AssignmentStatement',target:possibleTarget,value,span:this.merge(start,this.prev().span)};
-      return {kind:'CompoundAssignmentStatement',operator:op as any,target:possibleTarget,value,span:this.merge(start,this.prev().span)};
+      if(op==='='||op==='<-') return {kind:'AssignmentStatement',target:possibleTarget,value,span:this.mergeSourceSpans(start,this.prev().span)};
+      return {kind:'CompoundAssignmentStatement',operator:op as any,target:possibleTarget,value,span:this.mergeSourceSpans(start,this.prev().span)};
     }
-    if(this.matchOp('++')){this.endLine();return {kind:'IncrementStatement',target:possibleTarget,amount:1,span:this.merge(start,this.prev().span)};}
-    if(this.matchOp('--')){this.endLine();return {kind:'IncrementStatement',target:possibleTarget,amount:-1,span:this.merge(start,this.prev().span)};}
-    this.i=save; const expression=this.parseExpression(); this.endLine(); return {kind:'ExpressionStatement',expression,span:this.merge(start,this.prev().span)};
+    if(this.matchOp('++')){this.endLine();return {kind:'IncrementStatement',target:possibleTarget,amount:1,span:this.mergeSourceSpans(start,this.prev().span)};}
+    if(this.matchOp('--')){this.endLine();return {kind:'IncrementStatement',target:possibleTarget,amount:-1,span:this.mergeSourceSpans(start,this.prev().span)};}
+    this.i=save; const expression=this.parseExpression(); this.endLine(); return {kind:'ExpressionStatement',expression,span:this.mergeSourceSpans(start,this.prev().span)};
   }
 
   private parseVariableStatement(): VariableDeclarationStatement {
     const start=this.peek().span; const declaration=upper(this.advance().value) as 'VARIABLE'|'CONSTANTE'; const name=this.expectWordAny(); let typeAnnotation:TypeNode|undefined;if(this.matchP(':'))typeAnnotation=this.parseType(); let value:Expression|undefined;
-    if(this.matchOp('=')||this.matchOp('<-')) value=this.parseExpression(); this.endLine(); return {kind:'VariableDeclarationStatement',name,declaration,value,typeAnnotation,span:this.merge(start,this.prev().span)};
+    if(this.matchOp('=')||this.matchOp('<-')) value=this.parseExpression(); this.endLine(); return {kind:'VariableDeclarationStatement',name,declaration,value,typeAnnotation,span:this.mergeSourceSpans(start,this.prev().span)};
   }
 
   private parseIf(): IfStatement {
     const start=this.prev().span; const branches:{condition:Expression;body:Statement[]}[]=[]; const cond=this.parseExpression(); this.optionalWord('ENTONCES'); this.endLine(); branches.push({condition:cond,body:this.parseStatementsUntil(new Set(['SINO','FIN']))}); let otherwise:Statement[]|undefined;
     while(this.matchWord('SINO')) { if(this.matchWord('SI')) { const c=this.parseExpression(); this.optionalWord('ENTONCES'); this.endLine(); branches.push({condition:c,body:this.parseStatementsUntil(new Set(['SINO','FIN']))}); } else { this.endLine(); otherwise=this.parseStatementsUntil(new Set(['FIN'])); break; } }
-    this.expectWord('FIN'); this.optionalWord('SI'); this.endLine(); return {kind:'IfStatement',branches,otherwise,span:this.merge(start,this.prev().span)};
+    this.expectWord('FIN'); this.optionalWord('SI'); this.endLine(); return {kind:'IfStatement',branches,otherwise,span:this.mergeSourceSpans(start,this.prev().span)};
   }
-  private parseWhile(): WhileStatement { const start=this.prev().span; const condition=this.parseExpression(); this.optionalWord('HACER'); this.endLine(); const body=this.parseStatementsUntil(new Set(['FIN'])); this.expectWord('FIN'); this.optionalWord('MIENTRAS'); this.endLine(); return {kind:'WhileStatement',condition,body,span:this.merge(start,this.prev().span)}; }
-  private parseDoWhile():DoWhileStatement {const start=this.prev().span;this.endLine();const body=this.parseStatementsUntil(new Set(['MIENTRAS']));this.expectWord('MIENTRAS');const condition=this.parseExpression();this.endLine();return {kind:'DoWhileStatement',body,condition,span:this.merge(start,this.prev().span)};}
+  private parseWhile(): WhileStatement { const start=this.prev().span; const condition=this.parseExpression(); this.optionalWord('HACER'); this.endLine(); const body=this.parseStatementsUntil(new Set(['FIN'])); this.expectWord('FIN'); this.optionalWord('MIENTRAS'); this.endLine(); return {kind:'WhileStatement',condition,body,span:this.mergeSourceSpans(start,this.prev().span)}; }
+  private parseDoWhile():DoWhileStatement {const start=this.prev().span;this.endLine();const body=this.parseStatementsUntil(new Set(['MIENTRAS']));this.expectWord('MIENTRAS');const condition=this.parseExpression();this.endLine();return {kind:'DoWhileStatement',body,condition,span:this.mergeSourceSpans(start,this.prev().span)};}
   private parseFor(): ForRangeStatement|ForEachStatement {
     const start=this.prev().span;
-    if(this.matchWord('CADA')) { const valueVariable=this.expectWordAny(); let keyVariable:string|undefined; if(this.matchP(',')) keyVariable=this.expectWordAny(); this.expectWord('EN'); const iterable=this.parseExpression(); this.optionalWord('HACER'); this.endLine(); const body=this.parseStatementsUntil(new Set(['FIN'])); this.expectWord('FIN'); this.optionalWord('PARA'); this.endLine(); return {kind:'ForEachStatement',valueVariable,keyVariable,iterable,body,span:this.merge(start,this.prev().span)}; }
-    const variable=this.expectWordAny(); this.expectWord('DESDE'); const from=this.parseExpression(); this.expectWord('HASTA'); const end=this.parseExpression(); let step:Expression|undefined; if(this.matchWord('PASO')) step=this.parseExpression(); this.optionalWord('HACER'); this.endLine(); const body=this.parseStatementsUntil(new Set(['FIN'])); this.expectWord('FIN'); this.optionalWord('PARA'); this.endLine(); return {kind:'ForRangeStatement',variable,start:from,end,step,inclusive:true,body,span:this.merge(start,this.prev().span)};
+    if(this.matchWord('CADA')) { const valueVariable=this.expectWordAny(); let keyVariable:string|undefined; if(this.matchP(',')) keyVariable=this.expectWordAny(); this.expectWord('EN'); const iterable=this.parseExpression(); this.optionalWord('HACER'); this.endLine(); const body=this.parseStatementsUntil(new Set(['FIN'])); this.expectWord('FIN'); this.optionalWord('PARA'); this.endLine(); return {kind:'ForEachStatement',valueVariable,keyVariable,iterable,body,span:this.mergeSourceSpans(start,this.prev().span)}; }
+    const variable=this.expectWordAny(); this.expectWord('DESDE'); const from=this.parseExpression(); this.expectWord('HASTA'); const end=this.parseExpression(); let step:Expression|undefined; if(this.matchWord('PASO')) step=this.parseExpression(); this.optionalWord('HACER'); this.endLine(); const body=this.parseStatementsUntil(new Set(['FIN'])); this.expectWord('FIN'); this.optionalWord('PARA'); this.endLine(); return {kind:'ForRangeStatement',variable,start:from,end,step,inclusive:true,body,span:this.mergeSourceSpans(start,this.prev().span)};
   }
   private parseRepeat(): RepeatStatement|RepeatUntilStatement {
-    if(this.lineEnd()) {
+    if(this.isStatementTerminator()) {
       const start=this.prev().span;this.endLine();const body=this.parseStatementsUntil(new Set(['HASTA']));
       this.expectWord('HASTA');this.expectWord('QUE');const condition=this.parseExpression();this.endLine();
-      return {kind:'RepeatUntilStatement',body,condition,span:this.merge(start,this.prev().span)};
+      return {kind:'RepeatUntilStatement',body,condition,span:this.mergeSourceSpans(start,this.prev().span)};
     }
-    const start=this.prev().span; const count=this.parseExpression(); let indexVariable:string|undefined; if(this.matchWord('COMO')) indexVariable=this.expectWordAny(); this.optionalWord('VECES'); this.endLine(); const body=this.parseStatementsUntil(new Set(['FIN'])); this.expectWord('FIN'); this.optionalWord('REPETIR'); this.endLine(); return {kind:'RepeatStatement',count,indexVariable,body,span:this.merge(start,this.prev().span)}; }
+    const start=this.prev().span; const count=this.parseExpression(); let indexVariable:string|undefined; if(this.matchWord('COMO')) indexVariable=this.expectWordAny(); this.optionalWord('VECES'); this.endLine(); const body=this.parseStatementsUntil(new Set(['FIN'])); this.expectWord('FIN'); this.optionalWord('REPETIR'); this.endLine(); return {kind:'RepeatStatement',count,indexVariable,body,span:this.mergeSourceSpans(start,this.prev().span)}; }
   private parseDimension():DimensionStatement {
     const start=this.prev().span,name=this.expectWordAny();this.expectP('[');
     const dimensions:Expression[]=[];do dimensions.push(this.parseExpression());while(this.matchP(','));
     this.expectP(']');this.endLine();
     if(dimensions.length>8)throw this.error('DIMENSION: límite excedido (8 dimensiones).');
-    return {kind:'DimensionStatement',name,dimensions,span:this.merge(start,this.prev().span)};
+    return {kind:'DimensionStatement',name,dimensions,span:this.mergeSourceSpans(start,this.prev().span)};
   }
-  private parseInfiniteLoop():InfiniteLoopStatement {const start=this.prev().span;this.endLine();const body=this.parseStatementsUntil(new Set(['FIN']));this.expectWord('FIN');this.optionalWord('BUCLE');this.endLine();return {kind:'InfiniteLoopStatement',body,span:this.merge(start,this.prev().span)};}
+  private parseInfiniteLoop():InfiniteLoopStatement {const start=this.prev().span;this.endLine();const body=this.parseStatementsUntil(new Set(['FIN']));this.expectWord('FIN');this.optionalWord('BUCLE');this.endLine();return {kind:'InfiniteLoopStatement',body,span:this.mergeSourceSpans(start,this.prev().span)};}
   private parseSwitch(): SwitchStatement {
     const start=this.prev().span; const discriminant=this.parseExpression(); this.endLine(); const cases:any[]=[]; let defaultCase:Statement[]|undefined; this.skipLines();
-    while(!this.checkWord('FIN')&&!this.is('eof')) { if(this.matchWord('CASO')) { const tests=this.parseExpressionListToLine(); this.endLine(); const body=this.parseStatementsUntil(new Set(['CASO','DEFECTO','FIN'])); cases.push({tests,body}); continue; } if(this.matchWord('DEFECTO')) { this.endLine(); defaultCase=this.parseStatementsUntil(new Set(['FIN'])); break; } throw this.error('SEGUN: token inesperado; esperados: CASO, DEFECTO, FIN.'); }
-    this.expectWord('FIN'); this.optionalWord('SEGUN'); this.endLine(); return {kind:'SwitchStatement',discriminant,cases,defaultCase,span:this.merge(start,this.prev().span)};
+    while(!this.checkWord('FIN')&&!this.isTokenKind('eof')) { if(this.matchWord('CASO')) { const tests=this.parseExpressionListToLine(); this.endLine(); const body=this.parseStatementsUntil(new Set(['CASO','DEFECTO','FIN'])); cases.push({tests,body}); continue; } if(this.matchWord('DEFECTO')) { this.endLine(); defaultCase=this.parseStatementsUntil(new Set(['FIN'])); break; } throw this.error('SEGUN: token inesperado; esperados: CASO, DEFECTO, FIN.'); }
+    this.expectWord('FIN'); this.optionalWord('SEGUN'); this.endLine(); return {kind:'SwitchStatement',discriminant,cases,defaultCase,span:this.mergeSourceSpans(start,this.prev().span)};
   }
   private parseTry(): TryStatement {
     const start=this.prev().span; this.endLine(); const body=this.parseStatementsUntil(new Set(['CAPTURAR','FINALMENTE','FIN'])); const catches:any[]=[]; let finallyBody:Statement[]|undefined;
-    while(this.matchWord('CAPTURAR')) { let variable:string|undefined; if(!this.lineEnd()) variable=this.expectWordAny(); this.endLine(); catches.push({variable,body:this.parseStatementsUntil(new Set(['CAPTURAR','FINALMENTE','FIN']))}); }
+    while(this.matchWord('CAPTURAR')) { let variable:string|undefined; if(!this.isStatementTerminator()) variable=this.expectWordAny(); this.endLine(); catches.push({variable,body:this.parseStatementsUntil(new Set(['CAPTURAR','FINALMENTE','FIN']))}); }
     if(this.matchWord('FINALMENTE')) { this.endLine(); finallyBody=this.parseStatementsUntil(new Set(['FIN'])); }
-    this.expectWord('FIN'); this.optionalWord('INTENTAR'); this.endLine(); return {kind:'TryStatement',body,catches,finallyBody,span:this.merge(start,this.prev().span)};
+    this.expectWord('FIN'); this.optionalWord('INTENTAR'); this.endLine(); return {kind:'TryStatement',body,catches,finallyBody,span:this.mergeSourceSpans(start,this.prev().span)};
   }
-  private parseParallel():ParallelStatement {const start=this.prev().span;this.endLine();const branches=this.parseBranches('PARALELO');return {kind:'ParallelStatement',branches,span:this.merge(start,this.prev().span)};}
-  private parseRace():RaceStatement {const start=this.prev().span;this.endLine();const branches=this.parseBranches('CARRERA');return {kind:'RaceStatement',branches,span:this.merge(start,this.prev().span)};}
-  private parseBranches(endWord:string):Statement[][] {const branches:Statement[][]=[];this.skipLines();while(!this.checkWord('FIN')&&!this.is('eof')){if(this.matchWord('RAMA')){this.endLine();const b=this.parseStatementsUntil(new Set(['RAMA','FIN']));branches.push(b);if(this.checkWord('FIN')&&upper(this.peek(1).value)==='RAMA'){this.advance();this.advance();this.endLine();}continue;}const s=this.parseStatement();branches.push([s]);this.skipLines();}this.expectWord('FIN');this.optionalWord(endWord);this.endLine();return branches;}
-  private parseTimeout():TimeoutStatement {const start=this.prev().span;const duration=this.parseExpression();this.endLine();const body=this.parseStatementsUntil(new Set(['EXPIRA','FIN']));let onTimeout:Statement[]|undefined;if(this.matchWord('EXPIRA')){this.endLine();onTimeout=this.parseStatementsUntil(new Set(['FIN']));}this.expectWord('FIN');this.optionalWord('TIEMPO_LIMITE');this.endLine();return {kind:'TimeoutStatement',duration,body,onTimeout,span:this.merge(start,this.prev().span)};}
+  private parseParallel():ParallelStatement {const start=this.prev().span;this.endLine();const branches=this.parseBranches('PARALELO');return {kind:'ParallelStatement',branches,span:this.mergeSourceSpans(start,this.prev().span)};}
+  private parseRace():RaceStatement {const start=this.prev().span;this.endLine();const branches=this.parseBranches('CARRERA');return {kind:'RaceStatement',branches,span:this.mergeSourceSpans(start,this.prev().span)};}
+  private parseBranches(endWord:string):Statement[][] {const branches:Statement[][]=[];this.skipLines();while(!this.checkWord('FIN')&&!this.isTokenKind('eof')){if(this.matchWord('RAMA')){this.endLine();const b=this.parseStatementsUntil(new Set(['RAMA','FIN']));branches.push(b);if(this.checkWord('FIN')&&upper(this.peek(1).value)==='RAMA'){this.advance();this.advance();this.endLine();}continue;}const s=this.parseStatement();branches.push([s]);this.skipLines();}this.expectWord('FIN');this.optionalWord(endWord);this.endLine();return branches;}
+  private parseTimeout():TimeoutStatement {const start=this.prev().span;const duration=this.parseExpression();this.endLine();const body=this.parseStatementsUntil(new Set(['EXPIRA','FIN']));let onTimeout:Statement[]|undefined;if(this.matchWord('EXPIRA')){this.endLine();onTimeout=this.parseStatementsUntil(new Set(['FIN']));}this.expectWord('FIN');this.optionalWord('TIEMPO_LIMITE');this.endLine();return {kind:'TimeoutStatement',duration,body,onTimeout,span:this.mergeSourceSpans(start,this.prev().span)};}
 
   private isBuilderStart():boolean {const u=upper(this.peek().value);return BUILDER_WORDS.has(u)||(u==='CREAR'&&this.peek(1).kind==='word'&&BUILDER_WORDS.has(upper(this.peek(1).value)));}
   private parseBuilderDeclaration():DiscordBuilderDeclarationStatement {
     const start=this.peek().span;if(this.matchWord('CREAR')){} const raw=upper(this.expectWordAny());const map:Record<string,DiscordBuilderDeclarationStatement['builderKind']>={BUILDER:'generic',EMBED:'embed',BOTON:'button',MENU:'select',SELECT:'select',CAMPO_TEXTO:'textInput',ENTRADA_TEXTO:'textInput',MODAL:'modal',FILA:'row',ARCHIVO:'attachment',IMAGEN:'image',ENCUESTA:'poll',MENSAJE:'message'};const builderKind=map[raw]!;
     let subtype:string|undefined;let name:string;if(builderKind==='generic'){subtype=this.expectWordAny();name=this.expectWordAny();}else{name=this.expectWordAny();if(builderKind==='select'&&this.matchWord('TIPO'))subtype=upper(this.expectWordAny()).toLowerCase();}const entries:DiscordBuilderEntry[]=[];if(builderKind==='generic'&&this.matchWord('CON')){const cargs=this.parseExpressionListToLine();entries.push({key:'CONSTRUCTOR',arguments:cargs});}this.endLine();this.skipLines();
-    while(!this.checkWord('FIN')&&!this.is('eof')) {const key=upper(this.expectWordAny());const args:Expression[]=[];const flags:string[]=[];if(key==='LLAMAR'&&this.peek().kind==='word'){const mt=this.advance();args.push({kind:'LiteralExpression',value:mt.value,literalType:'texto',span:mt.span});if(this.matchP(',')){} }while(!this.lineEnd()){if(this.matchP(','))continue;if(this.peek().kind==='word'&&BUILDER_FLAGS.has(upper(this.peek().value))){flags.push(upper(this.advance().value));continue;}if((key==='ESTILO'||key==='TIPO')&&this.peek().kind==='word'&&BUILDER_ENUMS.has(upper(this.peek().value))){const et=this.advance();args.push({kind:'LiteralExpression',value:upper(et.value).toLowerCase(),literalType:'texto',span:et.span});}else args.push(this.parseExpression());if(!this.matchP(',')&&!this.lineEnd()&&!(this.peek().kind==='word'&&BUILDER_FLAGS.has(upper(this.peek().value))))throw this.error(`Propiedad '${key}': separador no válido; esperado ',' o salto de línea.`);}this.endLine();entries.push({key,arguments:args,flags});}
-    this.expectWord('FIN'); if(this.peek().kind==='word'&&[raw,'CREAR'].includes(upper(this.peek().value)))this.advance(); this.endLine();return {kind:'DiscordBuilderDeclarationStatement',builderKind,name,subtype,entries,span:this.merge(start,this.prev().span)};
+    while(!this.checkWord('FIN')&&!this.isTokenKind('eof')) {const key=upper(this.expectWordAny());const args:Expression[]=[];const flags:string[]=[];if(key==='LLAMAR'&&this.peek().kind==='word'){const mt=this.advance();args.push({kind:'LiteralExpression',value:mt.value,literalType:'texto',span:mt.span});if(this.matchP(',')){} }while(!this.isStatementTerminator()){if(this.matchP(','))continue;if(this.peek().kind==='word'&&BUILDER_FLAGS.has(upper(this.peek().value))){flags.push(upper(this.advance().value));continue;}if((key==='ESTILO'||key==='TIPO')&&this.peek().kind==='word'&&BUILDER_ENUMS.has(upper(this.peek().value))){const et=this.advance();args.push({kind:'LiteralExpression',value:upper(et.value).toLowerCase(),literalType:'texto',span:et.span});}else args.push(this.parseExpression());if(!this.matchP(',')&&!this.isStatementTerminator()&&!(this.peek().kind==='word'&&BUILDER_FLAGS.has(upper(this.peek().value))))throw this.error(`Propiedad '${key}': separador no válido; esperado ',' o salto de línea.`);}this.endLine();entries.push({key,arguments:args,flags});}
+    this.expectWord('FIN'); if(this.peek().kind==='word'&&[raw,'CREAR'].includes(upper(this.peek().value)))this.advance(); this.endLine();return {kind:'DiscordBuilderDeclarationStatement',builderKind,name,subtype,entries,span:this.mergeSourceSpans(start,this.prev().span)};
   }
 
   private isDiscordActionStart(): boolean { const u=upper(this.peek().value); return ['RESPONDER','ENVIAR','DAR','QUITAR','EXPULSAR','BANEAR','DESBANEAR','SILENCIAR','ELIMINAR','EDITAR','REACCIONAR','APODO','CREAR','FIJAR','DESFIJAR','LIMPIAR','DIFERIR','SEGUIR','MOSTRAR','MOVER','DESCONECTAR','PRESENCIA','SUGERIR','ARCHIVAR','DESARCHIVAR','BLOQUEAR','DESBLOQUEAR','SLOWMODE','PUBLICAR','PERMITIR','DENEGAR','SINCRONIZAR','AGREGAR','UNIR','SALIR'].includes(u); }
   private parseDiscordAction(): DiscordActionStatement {
     const start=this.peek().span; const first=upper(this.advance().value); let action=''; let target:Expression|undefined; const args:Expression[]=[]; const options:Record<string,Expression>={};
     if(first==='RESPONDER') { action='reply'; args.push(this.parseExpression()); if(this.matchWord('A')) target=this.parseExpression();
-      while(!this.lineEnd()) {
+      while(!this.isStatementTerminator()) {
         if(this.matchWord('EFIMERO')) options.efimero=this.literal(true);
         else if(this.matchWord('SIN_MENCIONES')) options.sinMenciones=this.literal(true);
         else if(this.matchWord('SIN')) {this.expectWord('MENCIONES'); options.sinMenciones=this.literal(true);}
@@ -431,7 +431,7 @@ export class Parser {
     else if(first==='BANEAR') { action='ban'; target=this.parseExpression(); if(this.matchWord('POR')) args.push(this.parseExpression()); }
     else if(first==='DESBANEAR') { action='unban'; target=this.parseExpression(); if(this.matchWord('POR'))args.push(this.parseExpression()); }
     else if(first==='SILENCIAR') { action='timeout'; target=this.parseExpression(); this.expectWord('POR'); args.push(this.parseExpression()); if(this.matchWord('RAZON')) args.push(this.parseExpression()); }
-    else if(first==='ELIMINAR') { if(this.matchWord('MENSAJE')) { action='deleteMessage'; if(!this.lineEnd())target=this.parseExpression(); } else if(this.matchWord('CANAL')) { action='deleteChannel'; target=this.parseExpression(); } else if(this.matchWord('ROL')){action='deleteRole';target=this.parseExpression();} else if(this.matchWord('RESPUESTA')){action='deleteReply';} else if(this.matchWord('EMOJI')){action='deleteEmoji';target=this.parseExpression();} else if(this.matchWord('STICKER')){action='deleteSticker';target=this.parseExpression();} else if(this.matchWord('EVENTO')){action='deleteScheduledEvent';target=this.parseExpression();} else if(this.matchWord('AUTOMOD')){action='deleteAutoMod';target=this.parseExpression();} else if(this.matchWord('SONIDO')){action='deleteSoundboard';target=this.parseExpression();} else throw this.error('ELIMINAR: destino no reconocido; admitidos: MENSAJE, CANAL, ROL, RESPUESTA, EMOJI, STICKER, EVENTO, AUTOMOD, SONIDO.'); }
+    else if(first==='ELIMINAR') { if(this.matchWord('MENSAJE')) { action='deleteMessage'; if(!this.isStatementTerminator())target=this.parseExpression(); } else if(this.matchWord('CANAL')) { action='deleteChannel'; target=this.parseExpression(); } else if(this.matchWord('ROL')){action='deleteRole';target=this.parseExpression();} else if(this.matchWord('RESPUESTA')){action='deleteReply';} else if(this.matchWord('EMOJI')){action='deleteEmoji';target=this.parseExpression();} else if(this.matchWord('STICKER')){action='deleteSticker';target=this.parseExpression();} else if(this.matchWord('EVENTO')){action='deleteScheduledEvent';target=this.parseExpression();} else if(this.matchWord('AUTOMOD')){action='deleteAutoMod';target=this.parseExpression();} else if(this.matchWord('SONIDO')){action='deleteSoundboard';target=this.parseExpression();} else throw this.error('ELIMINAR: destino no reconocido; admitidos: MENSAJE, CANAL, ROL, RESPUESTA, EMOJI, STICKER, EVENTO, AUTOMOD, SONIDO.'); }
     else if(first==='EDITAR') { if(this.matchWord('MENSAJE')){action='editMessage';target=this.parseExpression();this.expectWord('CON');args.push(this.parseExpression());} else if(this.matchWord('RESPUESTA')){action='editReply';args.push(this.parseExpression());} else if(this.matchWord('CANAL')){action='editChannel';target=this.parseExpression();this.expectWord('CON');args.push(this.parseExpression());} else if(this.matchWord('ROL')){action='editRole';target=this.parseExpression();this.expectWord('CON');args.push(this.parseExpression());} else if(this.matchWord('EMOJI')){action='editEmoji';target=this.parseExpression(4);this.expectWord('CON');args.push(this.parseExpression());} else if(this.matchWord('STICKER')){action='editSticker';target=this.parseExpression(4);this.expectWord('CON');args.push(this.parseExpression());} else if(this.matchWord('EVENTO')){action='editScheduledEvent';target=this.parseExpression(4);this.expectWord('CON');args.push(this.parseExpression());} else if(this.matchWord('AUTOMOD')){action='editAutoMod';target=this.parseExpression(4);this.expectWord('CON');args.push(this.parseExpression());} else if(this.matchWord('SONIDO')){action='editSoundboard';target=this.parseExpression(4);this.expectWord('CON');args.push(this.parseExpression());} else throw this.error('EDITAR: destino no reconocido; admitidos: MENSAJE, RESPUESTA, CANAL, ROL, EMOJI, STICKER, EVENTO, AUTOMOD, SONIDO.'); }
     else if(first==='REACCIONAR') { action='react'; args.push(this.parseExpression(4)); if(this.matchWord('A'))target=this.parseExpression(); }
     else if(first==='APODO') { action='nickname'; args.push(this.parseExpression()); this.expectWord('A'); target=this.parseExpression(); }
@@ -440,7 +440,7 @@ export class Parser {
       else if(this.matchWord('HILO')) { action='createThread'; args.push(this.parseExpression(4)); this.expectWord('EN'); target=this.parseExpression(); }
       else if(this.matchWord('ROL')) {action='createRole';args.push(this.parseExpression());if(this.matchWord('CON'))args.push(this.parseExpression());}
       else if(this.matchWord('WEBHOOK')) {action='createWebhook';args.push(this.parseExpression(4));this.expectWord('EN');target=this.parseExpression();}
-      else if(this.matchWord('INVITACION')) {action='createInvite';if(!this.lineEnd())target=this.parseExpression();}
+      else if(this.matchWord('INVITACION')) {action='createInvite';if(!this.isStatementTerminator())target=this.parseExpression();}
       else if(this.matchWord('EMOJI')) {action='createEmoji';args.push(this.parseExpression());}
       else if(this.matchWord('STICKER')) {action='createSticker';args.push(this.parseExpression());}
       else if(this.matchWord('EVENTO')) {action='createScheduledEvent';args.push(this.parseExpression());}
@@ -448,8 +448,8 @@ export class Parser {
       else if(this.matchWord('SONIDO')) {action='createSoundboard';args.push(this.parseExpression());}
       else throw this.error('CREAR: tipo de recurso no reconocido; admitidos: CANAL, HILO, ROL, WEBHOOK, INVITACION, EMOJI, STICKER, EVENTO, AUTOMOD, SONIDO.');
     }
-    else if(first==='FIJAR'){action='pin';if(!this.lineEnd())target=this.parseExpression();}
-    else if(first==='DESFIJAR'){action='unpin';if(!this.lineEnd())target=this.parseExpression();}
+    else if(first==='FIJAR'){action='pin';if(!this.isStatementTerminator())target=this.parseExpression();}
+    else if(first==='DESFIJAR'){action='unpin';if(!this.isStatementTerminator())target=this.parseExpression();}
     else if(first==='LIMPIAR'){action='bulkDelete';args.push(this.parseExpression(4));if(this.matchWord('EN'))target=this.parseExpression();}
     else if(first==='DIFERIR'){action='deferReply';if(this.matchWord('EFIMERO'))args.push(this.literal(true));}
     else if(first==='SEGUIR'){action='followUp';args.push(this.parseExpression());}
@@ -467,9 +467,9 @@ export class Parser {
     else if(first==='PERMITIR'||first==='DENEGAR'){action=first==='PERMITIR'?'allowPermission':'denyPermission';args.push(this.parseExpression(4));this.expectWord('A');args.push(this.parseExpression(4));this.expectWord('EN');target=this.parseExpression();}
     else if(first==='SINCRONIZAR'){this.expectWord('PERMISOS');action='syncPermissions';target=this.parseExpression();}
     else if(first==='AGREGAR'){target=this.parseExpression(4);this.expectWord('A');this.expectWord('HILO');args.push(this.parseExpression());action='addThreadMember';}
-    else if(first==='UNIR'){this.optionalWord('HILO');action='joinThread';target=this.lineEnd()?undefined:this.parseExpression();}
-    else if(first==='SALIR'){this.optionalWord('HILO');action='leaveThread';target=this.lineEnd()?undefined:this.parseExpression();}
-    this.endLine(); return {kind:'DiscordActionStatement',action,target,arguments:args,options,await:true,span:this.merge(start,this.prev().span)};
+    else if(first==='UNIR'){this.optionalWord('HILO');action='joinThread';target=this.isStatementTerminator()?undefined:this.parseExpression();}
+    else if(first==='SALIR'){this.optionalWord('HILO');action='leaveThread';target=this.isStatementTerminator()?undefined:this.parseExpression();}
+    this.endLine(); return {kind:'DiscordActionStatement',action,target,arguments:args,options,await:true,span:this.mergeSourceSpans(start,this.prev().span)};
   }
 
   private parseExpression(minPrec=0): Expression {
@@ -485,14 +485,14 @@ export class Parser {
       const op=this.currentOperator(); if(!op) break; const prec=PRECEDENCE[op]; if(prec===undefined||prec<minPrec) break; this.advance(); const right=this.parseExpression(op==='**'?prec:prec+1);
       if(op==='Y'||op==='&&'||op==='O'||op==='||') left={kind:'LogicalExpression',operator:(op==='Y'||op==='&&')?'Y':'O',left,right};
       else if(op==='??') left={kind:'NullishExpression',left,right};
-      else left={kind:'BinaryExpression',operator:this.mapBinary(op),left,right};
+      else left={kind:'BinaryExpression',operator:this.mapBinaryOperator(op),left,right};
     }
     return left;
   }
 
   private parsePrefix(): Expression {
     const t=this.advance();
-    if(t.kind==='number') { const v=this.numberValue(t.value); return typeof v==='bigint'?{kind:'LiteralExpression',value:v,literalType:'bigint',span:t.span}:{kind:'LiteralExpression',value:v,literalType:Number.isInteger(v)?'entero':'numero',span:t.span}; }
+    if(t.kind==='number') { const v=this.parseNumericLiteralValue(t.value); return typeof v==='bigint'?{kind:'LiteralExpression',value:v,literalType:'bigint',span:t.span}:{kind:'LiteralExpression',value:v,literalType:Number.isInteger(v)?'entero':'numero',span:t.span}; }
     if(t.kind==='string') return {kind:'LiteralExpression',value:t.value,literalType:'texto',span:t.span};
     if(t.kind==='word') {
       const u=upper(t.value);
@@ -531,18 +531,18 @@ export class Parser {
   }
 
   private parseArgumentsAfterOpen(): CallArgument[] { const out:CallArgument[]=[]; if(!this.checkP(')')) do out.push({value:this.parseExpression()}); while(this.matchP(',')); this.expectP(')'); return out; }
-  private parseExpressionListToLine(): Expression[] { const out:Expression[]=[]; if(this.lineEnd()) return out; do out.push(this.parseExpression()); while(this.matchP(',')); return out; }
+  private parseExpressionListToLine(): Expression[] { const out:Expression[]=[]; if(this.isStatementTerminator()) return out; do out.push(this.parseExpression()); while(this.matchP(',')); return out; }
   private parseExpressionListAsArray():Expression {const elements=this.parseExpressionListToLine();return {kind:'ArrayExpression',elements};}
   private currentOperator(): string|undefined { const t=this.peek(); if(t.kind==='operator') return t.value; if(t.kind==='word') { const u=upper(t.value); if(PRECEDENCE[u]!==undefined) return u; if(u==='NO' && this.peek(1).kind==='word') { const c=`NO_${upper(this.peek(1).value)}`; if(PRECEDENCE[c]!==undefined) { this.advance(); return c; } } } return undefined; }
-  private mapBinary(op:string): BinaryOperator { const map:Record<string,string>={'&':'BIT_Y','|':'BIT_O','^':'BIT_XOR','MOD':'%'}; return (map[op]??op) as BinaryOperator; }
+  private mapBinaryOperator(op:string): BinaryOperator { const map:Record<string,string>={'&':'BIT_Y','|':'BIT_O','^':'BIT_XOR','MOD':'%'}; return (map[op]??op) as BinaryOperator; }
   private literal(value:boolean):Expression{return {kind:'LiteralExpression',value,literalType:'booleano'};}
-  private numberValue(raw0:string):number|bigint {const raw=raw0.replaceAll('_','');if(raw.endsWith('n'))return BigInt(raw.slice(0,-1));return raw.startsWith('0x')?parseInt(raw.slice(2),16):raw.startsWith('0b')?parseInt(raw.slice(2),2):raw.startsWith('0o')?parseInt(raw.slice(2),8):Number(raw);}
-  private expectNumberLiteral():number {const t=this.peek();if(t.kind!=='number')throw this.error('Literal numérico requerido.');this.advance();return Number(this.numberValue(t.value));}
-  private parseOptionalBoolean(def:boolean):boolean {if(this.lineEnd())return def;if(this.matchWord('VERDADERO')||this.matchWord('SI'))return true;if(this.matchWord('FALSO')||this.matchWord('NO'))return false;return def;}
+  private parseNumericLiteralValue(raw0:string):number|bigint {const raw=raw0.replaceAll('_','');if(raw.endsWith('n'))return BigInt(raw.slice(0,-1));return raw.startsWith('0x')?parseInt(raw.slice(2),16):raw.startsWith('0b')?parseInt(raw.slice(2),2):raw.startsWith('0o')?parseInt(raw.slice(2),8):Number(raw);}
+  private expectNumberLiteral():number {const t=this.peek();if(t.kind!=='number')throw this.error('Literal numérico requerido.');this.advance();return Number(this.parseNumericLiteralValue(t.value));}
+  private parseOptionalBoolean(def:boolean):boolean {if(this.isStatementTerminator())return def;if(this.matchWord('VERDADERO')||this.matchWord('SI'))return true;if(this.matchWord('FALSO')||this.matchWord('NO'))return false;return def;}
 
-  private lineEnd(): boolean { return this.is('newline')||this.is('eof'); }
-  private endLine(): void { if(this.matchP(';')){} if(this.is('newline')) this.skipLines(); else if(!this.is('eof')&&!this.checkWord('FIN')&&!this.checkWord('SINO')&&!this.checkWord('CASO')&&!this.checkWord('DEFECTO')&&!this.checkWord('CAPTURAR')&&!this.checkWord('FINALMENTE')&&!this.checkWord('EXPIRA')&&!this.checkWord('RAMA')&&!this.checkWord('MIENTRAS')) throw this.error(`Token inesperado '${this.peek().value}': se esperaba fin de línea.`); }
-  private skipLines(): void { while(this.is('newline')||(this.peek().kind==='punctuation'&&this.peek().value===';')) this.advance(); }
+  private isStatementTerminator(): boolean { return this.isTokenKind('newline')||this.isTokenKind('eof'); }
+  private endLine(): void { if(this.matchP(';')){} if(this.isTokenKind('newline')) this.skipLines(); else if(!this.isTokenKind('eof')&&!this.checkWord('FIN')&&!this.checkWord('SINO')&&!this.checkWord('CASO')&&!this.checkWord('DEFECTO')&&!this.checkWord('CAPTURAR')&&!this.checkWord('FINALMENTE')&&!this.checkWord('EXPIRA')&&!this.checkWord('RAMA')&&!this.checkWord('MIENTRAS')) throw this.error(`Token inesperado '${this.peek().value}': se esperaba fin de línea.`); }
+  private skipLines(): void { while(this.isTokenKind('newline')||(this.peek().kind==='punctuation'&&this.peek().value===';')) this.advance(); }
   private optionalWord(w:string): boolean { return this.matchWord(w); }
   private matchWord(w:string): boolean { if(this.checkWord(w)){this.advance();return true} return false; }
   private checkWord(w:string): boolean { return this.peek().kind==='word'&&upper(this.peek().value)===upper(w); }
@@ -555,14 +555,14 @@ export class Parser {
   private expectP(v:string): Token { if(!this.checkP(v)) throw this.error(`Token requerido: '${v}'.`); return this.advance(); }
   private matchOp(v:string): boolean { if(this.peek().kind==='operator'&&this.peek().value===v){this.advance();return true} return false; }
   private expectOpOrP(v:string):void {if(this.matchOp(v)||this.matchP(v))return;throw this.error(`Token requerido: '${v}'.`);}
-  private is(kind:Token['kind']): boolean { return this.peek().kind===kind; }
-  private expect(kind:Token['kind']):Token { if(!this.is(kind)) throw this.error(`Token requerido de clase '${kind}'.`); return this.advance(); }
+  private isTokenKind(kind:Token['kind']): boolean { return this.peek().kind===kind; }
+  private expect(kind:Token['kind']):Token { if(!this.isTokenKind(kind)) throw this.error(`Token requerido de clase '${kind}'.`); return this.advance(); }
   private peek(n=0):Token { return this.tokens[Math.min(this.i+n,this.tokens.length-1)]!; }
   private prev():Token { return this.tokens[Math.max(0,this.i-1)]!; }
   private advance():Token { return this.tokens[this.i++]!; }
-  private error(message:string):PseudoDiscordError { return this.errorAt(this.peek().span,message,'Parser-Sintaxis-Error'); }
-  private errorAt(span:SourceSpan,message:string,code='Parser-Sintaxis-Error'):PseudoDiscordError { return new PseudoDiscordError(message,span,code); }
-  private merge(a:SourceSpan,b:SourceSpan):SourceSpan { return {start:a.start,end:b.end,source:a.source??b.source}; }
+  private error(message:string):PseudocordError { return this.errorAt(this.peek().span,message,'Parser-Sintaxis-Error'); }
+  private errorAt(span:SourceSpan,message:string,code='Parser-Sintaxis-Error'):PseudocordError { return new PseudocordError(message,span,code); }
+  private mergeSourceSpans(a:SourceSpan,b:SourceSpan):SourceSpan { return {start:a.start,end:b.end,source:a.source??b.source}; }
 }
 
 export function parse(source:string, sourceName='<memoria>'):Program { return new Parser(lex(source,sourceName),sourceName).parseProgram(); }

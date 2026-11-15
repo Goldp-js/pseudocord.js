@@ -97,35 +97,35 @@ function validateOptions(options:readonly any[],node:any,add:any){
   for(const o of options){
     // Diagnósticos de opciones: la ubicación pertenece al identificador, no al comando contenedor.
     const optionLocation=o.span?o:node;
-    const addOption=(severity:'error'|'warning',code:string,message:string)=>add(severity,code,message,optionLocation);
+    const reportOptionDiagnostic=(severity:'error'|'warning',code:string,message:string)=>add(severity,code,message,optionLocation);
     const k=String(o.name).toLowerCase();
-    if(['__proto__','prototype','constructor'].includes(k))addOption('error','Validator-NombreReservado-Error',`Opción '${o.name}': identificador reservado del prototipo de objetos.`);
-    // La opción homónima no es ambigua por sí sola: analizar el uso real
+    if(['__proto__','prototype','constructor'].includes(k))reportOptionDiagnostic('error','Validator-NombreReservado-Error',`Opción '${o.name}': identificador reservado del prototipo de objetos.`);
+    // Identical option names are diagnosed only at ambiguous reference sites.
     // de nombres cortos en el cuerpo evita advertencias falsas.
-    if(seen.has(k))addOption('error','Validator-OpcionDuplicada-Error',`Opción duplicada: '${o.name}'.`);
+    if(seen.has(k))reportOptionDiagnostic('error','Validator-OpcionDuplicada-Error',`Opción duplicada: '${o.name}'.`);
     seen.add(k);
-    if(!/^[a-z0-9_-]{1,32}$/.test(o.name))addOption('error','Validator-NombreOpcion-Error',`Nombre de opción no válido: '${o.name}' (a-z, 0-9, '_', '-'; 1–32 caracteres).`);
-    if(!allowed.has(o.kind))addOption('error','Validator-TipoOpcion-Error',`Opción '${o.name}': tipo no reconocido '${o.kind}'. Valores admitidos: ${[...allowed].join(', ')}.`);
-    if(o.description.length<1||o.description.length>100)addOption('error','Validator-DescripcionOpcion-Error',`Opción '${o.name}': descripción fuera de rango (1–100 caracteres).`);
+    if(!/^[a-z0-9_-]{1,32}$/.test(o.name))reportOptionDiagnostic('error','Validator-NombreOpcion-Error',`Nombre de opción no válido: '${o.name}' (a-z, 0-9, '_', '-'; 1–32 caracteres).`);
+    if(!allowed.has(o.kind))reportOptionDiagnostic('error','Validator-TipoOpcion-Error',`Opción '${o.name}': tipo no reconocido '${o.kind}'. Valores admitidos: ${[...allowed].join(', ')}.`);
+    if(o.description.length<1||o.description.length>100)reportOptionDiagnostic('error','Validator-DescripcionOpcion-Error',`Opción '${o.name}': descripción fuera de rango (1–100 caracteres).`);
     if(!o.required)optionalSeen=true;
-    else if(optionalSeen)addOption('error','Validator-OrdenOpciones-Error',`Opción requerida '${o.name}' declarada después de una opción opcional; Discord exige las requeridas primero.`);
-    if((o.choices?.length??0)>25)addOption('error','Validator-LimiteElecciones-Error',`Opción '${o.name}': límite de 25 elecciones excedido.`);
-    if(o.autocomplete&&o.choices?.length)addOption('error','Validator-EleccionAutocompletar-Error',`Opción '${o.name}': ELECCION y AUTOCOMPLETAR son incompatibles.`);
-    if(o.choices?.length&&!['texto','entero','numero'].includes(o.kind))addOption('error','Validator-EleccionTipo-Error',`Opción '${o.name}': ELECCION requiere tipo texto, entero o numero.`);
+    else if(optionalSeen)reportOptionDiagnostic('error','Validator-OrdenOpciones-Error',`Opción requerida '${o.name}' declarada después de una opción opcional; Discord exige las requeridas primero.`);
+    if((o.choices?.length??0)>25)reportOptionDiagnostic('error','Validator-LimiteElecciones-Error',`Opción '${o.name}': límite de 25 elecciones excedido.`);
+    if(o.autocomplete&&o.choices?.length)reportOptionDiagnostic('error','Validator-EleccionAutocompletar-Error',`Opción '${o.name}': ELECCION y AUTOCOMPLETAR son incompatibles.`);
+    if(o.choices?.length&&!['texto','entero','numero'].includes(o.kind))reportOptionDiagnostic('error','Validator-EleccionTipo-Error',`Opción '${o.name}': ELECCION requiere tipo texto, entero o numero.`);
     for(const choice of o.choices??[])if(o.kind==='entero'&&!Number.isSafeInteger(choice.value)||o.kind==='numero'&&(typeof choice.value!=='number'||!Number.isFinite(choice.value))||o.kind==='texto'&&typeof choice.value!=='string')
-      addOption('error','Validator-EleccionValor-Error',`Opción '${o.name}': valor de ELECCION incompatible con el tipo '${o.kind}'.`);
+      reportOptionDiagnostic('error','Validator-EleccionValor-Error',`Opción '${o.name}': valor de ELECCION incompatible con el tipo '${o.kind}'.`);
     if(o.minLength!==undefined||o.maxLength!==undefined){
-      if(o.kind!=='texto')addOption('error','Validator-LongitudOpcion-Error',`Opción '${o.name}': límites de longitud disponibles solo para tipo texto.`);
-      for(const n of [o.minLength,o.maxLength])if(n!==undefined&&(!Number.isSafeInteger(n)||n<0||n>6000))addOption('error','Validator-LongitudOpcion-Error',`Opción '${o.name}': límite de longitud fuera del rango 0–6000.`);
-      if(o.minLength!==undefined&&o.maxLength!==undefined&&o.minLength>o.maxLength)addOption('error','Validator-LimitesOpcion-Error',`Opción '${o.name}': MINIMO excede MAXIMO.`);
+      if(o.kind!=='texto')reportOptionDiagnostic('error','Validator-LongitudOpcion-Error',`Opción '${o.name}': límites de longitud disponibles solo para tipo texto.`);
+      for(const n of [o.minLength,o.maxLength])if(n!==undefined&&(!Number.isSafeInteger(n)||n<0||n>6000))reportOptionDiagnostic('error','Validator-LongitudOpcion-Error',`Opción '${o.name}': límite de longitud fuera del rango 0–6000.`);
+      if(o.minLength!==undefined&&o.maxLength!==undefined&&o.minLength>o.maxLength)reportOptionDiagnostic('error','Validator-LimitesOpcion-Error',`Opción '${o.name}': MINIMO excede MAXIMO.`);
     }
     if(o.minValue!==undefined||o.maxValue!==undefined){
-      if(!['entero','numero'].includes(o.kind))addOption('error','Validator-LimiteNumerico-Error',`Opción '${o.name}': límites numéricos requieren tipo entero o numero.`);
-      for(const n of [o.minValue,o.maxValue])if(n!==undefined&&(!Number.isFinite(n)||(o.kind==='entero'&&!Number.isSafeInteger(n))))addOption('error','Validator-LimiteNumerico-Error',`Opción '${o.name}': límite numérico no finito o incompatible con su tipo.`);
-      if(o.minValue!==undefined&&o.maxValue!==undefined&&o.minValue>o.maxValue)addOption('error','Validator-LimitesOpcion-Error',`Opción '${o.name}': MINIMO excede MAXIMO.`);
+      if(!['entero','numero'].includes(o.kind))reportOptionDiagnostic('error','Validator-LimiteNumerico-Error',`Opción '${o.name}': límites numéricos requieren tipo entero o numero.`);
+      for(const n of [o.minValue,o.maxValue])if(n!==undefined&&(!Number.isFinite(n)||(o.kind==='entero'&&!Number.isSafeInteger(n))))reportOptionDiagnostic('error','Validator-LimiteNumerico-Error',`Opción '${o.name}': límite numérico no finito o incompatible con su tipo.`);
+      if(o.minValue!==undefined&&o.maxValue!==undefined&&o.minValue>o.maxValue)reportOptionDiagnostic('error','Validator-LimitesOpcion-Error',`Opción '${o.name}': MINIMO excede MAXIMO.`);
     }
-    if(o.channelTypes?.length&&o.kind!=='canal')addOption('error','Validator-TipoCanal-Error',`Opción '${o.name}': CANALES requiere tipo canal.`);
-    if(o.autocomplete&&!['texto','entero','numero'].includes(o.kind))addOption('error','Validator-AutocompletarTipo-Error',`Opción '${o.name}': AUTOCOMPLETAR requiere tipo texto, entero o numero.`);
+    if(o.channelTypes?.length&&o.kind!=='canal')reportOptionDiagnostic('error','Validator-TipoCanal-Error',`Opción '${o.name}': CANALES requiere tipo canal.`);
+    if(o.autocomplete&&!['texto','entero','numero'].includes(o.kind))reportOptionDiagnostic('error','Validator-AutocompletarTipo-Error',`Opción '${o.name}': AUTOCOMPLETAR requiere tipo texto, entero o numero.`);
   }
 }
 

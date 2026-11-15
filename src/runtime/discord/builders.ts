@@ -5,9 +5,9 @@ export interface BuilderEntry { key:string; args:any[]; flags:string[]; }
 /** Construye los componentes de Discord a partir de propiedades ya evaluadas. */
 export async function constructDiscordBuilder(s:any,entries:BuilderEntry[],discord:any):Promise<any>{
     const D:any=discord;
-    const first=(key:string)=>entries.find(e=>e.key===key)?.args?.[0];
-    const many=(key:string)=>entries.filter(e=>e.key===key);
-    const has=(key:string)=>entries.some(e=>e.key===key)||entries.some(e=>e.flags.includes(key));
+    const getFirstBuilderArgument=(key:string)=>entries.find(e=>e.key===key)?.args?.[0];
+    const findBuilderEntries=(key:string)=>entries.filter(e=>e.key===key);
+    const hasBuilderEntryOrFlag=(key:string)=>entries.some(e=>e.key===key)||entries.some(e=>e.flags.includes(key));
     if(s.builderKind==='generic'){
       const C:any=D[String(s.subtype)];if(typeof C!=='function')throw new Error(`API Discord: constructor 'discord.${s.subtype}' no disponible.`);const ctor=entries.find(e=>e.key==='CONSTRUCTOR')?.args??[];const b:any=Reflect.construct(C,ctor);
       for(const e of entries){if(e.key==='CONSTRUCTOR')continue;if(e.key==='LLAMAR'){const [method,...args]=e.args;const fn=b?.[String(method)];if(typeof fn!=='function')throw new Error(`API Discord: método '${s.subtype}.${String(method)}' no disponible.`);await fn.apply(b,args);}else if(e.key==='PROPIEDAD'){b[String(e.args[0])]=e.args[1];}}
@@ -40,13 +40,13 @@ export async function constructDiscordBuilder(s:any,entries:BuilderEntry[],disco
       const b=new D.ModalBuilder();for(const e of entries){if(e.key==='ID')b.setCustomId(String(e.args[0]));else if(e.key==='TITULO')b.setTitle(String(e.args[0]));else if(e.key==='CAMPO'||e.key==='COMPONENTE'){for(const c of e.args){if(c?.data?.type===D.ComponentType?.ActionRow)b.addComponents(c);else b.addComponents(new D.ActionRowBuilder().addComponents(c));}}}return b;
     }
     if(s.builderKind==='attachment'||s.builderKind==='image'){
-      const source=first('ORIGEN')??first('RUTA')??first('DATOS');if(source===undefined)throw new Error(`Constructor ${s.builderKind.toUpperCase()}: campo ORIGEN requerido.`);const opts:any={};const n=first('NOMBRE');if(n!==undefined)opts.name=String(n);const d=first('DESCRIPCION');if(d!==undefined)opts.description=String(d);const b=new D.AttachmentBuilder(source,opts);if(has('SPOILER'))b.setSpoiler(true);return b;
+      const source=getFirstBuilderArgument('ORIGEN')??getFirstBuilderArgument('RUTA')??getFirstBuilderArgument('DATOS');if(source===undefined)throw new Error(`Constructor ${s.builderKind.toUpperCase()}: campo ORIGEN requerido.`);const opts:any={};const n=getFirstBuilderArgument('NOMBRE');if(n!==undefined)opts.name=String(n);const d=getFirstBuilderArgument('DESCRIPCION');if(d!==undefined)opts.description=String(d);const b=new D.AttachmentBuilder(source,opts);if(hasBuilderEntryOrFlag('SPOILER'))b.setSpoiler(true);return b;
     }
     if(s.builderKind==='poll'){
-      const answers=many('OPCION').map(e=>({text:String(e.args[0]),emoji:e.args[1]}));return {__pdKind:'poll',question:{text:String(first('PREGUNTA')??'Encuesta')},answers,duration:Number(first('DURACION')??24),allowMultiselect:has('MULTIPLE')||Boolean(first('MULTIPLE')),layoutType:first('DISENO')??first('DISEÑO')};
+      const answers=findBuilderEntries('OPCION').map(e=>({text:String(e.args[0]),emoji:e.args[1]}));return {__pdKind:'poll',question:{text:String(getFirstBuilderArgument('PREGUNTA')??'Encuesta')},answers,duration:Number(getFirstBuilderArgument('DURACION')??24),allowMultiselect:hasBuilderEntryOrFlag('MULTIPLE')||Boolean(getFirstBuilderArgument('MULTIPLE')),layoutType:getFirstBuilderArgument('DISENO')??getFirstBuilderArgument('DISEÑO')};
     }
     if(s.builderKind==='message'){
-      const out:any={__pdKind:'message'};const content=first('CONTENIDO');if(content!==undefined)out.content=String(content);const embeds=many('EMBED').flatMap(e=>e.args);if(embeds.length)out.embeds=embeds;const comps=many('COMPONENTE').concat(many('FILA')).flatMap(e=>e.args);if(comps.length)out.components=comps;const files=many('ARCHIVO').concat(many('IMAGEN')).flatMap(e=>e.args);if(files.length)out.files=files;const poll=first('ENCUESTA');if(poll)out.poll=poll.__pdKind==='poll'?stripPd(poll):poll;const mentions=first('MENCIONES');if(mentions)out.allowedMentions=mentions;if(has('EFIMERO'))out.ephemeral=true;if(has('TTS'))out.tts=true;if(has('SUPRIMIR_EMBEDS')&&D.MessageFlags)out.flags=D.MessageFlags.SuppressEmbeds;return out;
+      const out:any={__pdKind:'message'};const content=getFirstBuilderArgument('CONTENIDO');if(content!==undefined)out.content=String(content);const embeds=findBuilderEntries('EMBED').flatMap(e=>e.args);if(embeds.length)out.embeds=embeds;const comps=findBuilderEntries('COMPONENTE').concat(findBuilderEntries('FILA')).flatMap(e=>e.args);if(comps.length)out.components=comps;const files=findBuilderEntries('ARCHIVO').concat(findBuilderEntries('IMAGEN')).flatMap(e=>e.args);if(files.length)out.files=files;const poll=getFirstBuilderArgument('ENCUESTA');if(poll)out.poll=poll.__pdKind==='poll'?stripPd(poll):poll;const mentions=getFirstBuilderArgument('MENCIONES');if(mentions)out.allowedMentions=mentions;if(hasBuilderEntryOrFlag('EFIMERO'))out.ephemeral=true;if(hasBuilderEntryOrFlag('TTS'))out.tts=true;if(hasBuilderEntryOrFlag('SUPRIMIR_EMBEDS')&&D.MessageFlags)out.flags=D.MessageFlags.SuppressEmbeds;return out;
     }
     throw new Error(`Constructor de Discord no implementado: '${s.builderKind}'.`);
 }

@@ -1,10 +1,28 @@
 import { createRequire } from 'node:module';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { join } from 'node:path';
 import { realpath } from 'node:fs/promises';
 import { dirname, isAbsolute, relative, resolve, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { createStdlib } from '../runtime/stdlib.js';
 import { normalizeIdentifier } from '../language/identifiers.js';
 import { satisfiesVersion } from './versions.js';
+
+/** Resolve the package version regardless of whether this source runs via TypeScript or dist/. */
+function readCoreVersion():string {
+  const start=fileURLToPath(new URL('.',import.meta.url));
+  for (const relative of ['../../package.json','../../../package.json']) {
+    try {
+      const data:unknown=JSON.parse(readFileSync(join(start,relative),'utf8'));
+      if (data && typeof data==='object' && 'name' in data && (data as any).name==='pseudocord.js' &&
+          typeof (data as any).version==='string') return (data as any).version;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code!=='ENOENT') throw error;
+    }
+  }
+  throw new Error('PluginManager: no se pudo localizar la versión de pseudocord.js.');
+}
 
 export interface PluginService { version:string; value:unknown; owner:string }
 export interface PluginAPI {
@@ -32,9 +50,9 @@ export class PluginManager {
   private readonly services=new Map<string,PluginService>();
   private readonly plugins=new Map<string,{plugin:PseudoPlugin;api:PluginAPI}>();
   private readonly registrations=new Set<string>();
-  constructor(readonly coreVersion='0.17.0',readonly sdkVersion='0.1.0'){}
+  constructor(readonly coreVersion=readCoreVersion(),readonly sdkVersion='0.1.0'){}
 
-  private makeApi(owner:string):PluginAPI {
+  private createPluginApi(owner:string):PluginAPI {
     return Object.freeze({
       pluginName:owner,
       logger:console,
@@ -92,7 +110,7 @@ export class PluginManager {
     for(const key of all.keys())dfs(key);
     try{
       for(const plugin of sorted){
-        const api=this.makeApi(plugin.name);
+        const api=this.createPluginApi(plugin.name);
         // Registrar antes de setup para intentar dispose si se produce un fallo parcial.
         this.plugins.set(normalizeIdentifier(plugin.name),{plugin,api});
         await plugin.setup(api);

@@ -8,9 +8,25 @@ interface Scope { budget: Budget; signal?: AbortSignal; }
 const storage = new AsyncLocalStorage<Scope>();
 
 /** Cada comando/evento recibe su propio presupuesto. Las ramas comparten presupuesto, no el de otros comandos. */
-export function runExecution<T>(limits: {maxIterations: number; maxExecutionMs: number}, signal: AbortSignal | undefined, run: () => Promise<T>): Promise<T> {
+export async function runExecution<T>(limits: {maxIterations: number; maxExecutionMs: number}, signal: AbortSignal | undefined, run: () => Promise<T>): Promise<T> {
+  if (!Number.isSafeInteger(limits.maxExecutionMs) || limits.maxExecutionMs < 1)
+    throw new RangeError('Ejecución: maxExecutionMs debe ser un entero positivo.');
   const budget = { startedAt: Date.now(), iterations: 0, ...limits };
-  return storage.run({budget, signal}, run);
+  const child = childSignal(signal);
+  const timer = setTimeout(() => child.controller.abort(), limits.maxExecutionMs);
+  timer.unref?.();
+  try {
+    return await storage.run({budget, signal:child.controller.signal}, async()=>{
+      const result=await run();
+      if (Date.now()-budget.startedAt >= budget.maxExecutionMs)
+        throw new Error(`Ejecución interrumpida: tiempo máximo excedido (${budget.maxExecutionMs} ms).`);
+      return result;
+    });
+  } finally {
+    clearTimeout(timer);
+    child.controller.abort();
+    child.dispose();
+  }
 }
 export function currentSignal(): AbortSignal | undefined { return storage.getStore()?.signal; }
 /** Milisegundos disponibles antes del límite de ejecución; Infinity fuera del intérprete. */
@@ -20,9 +36,9 @@ export function remainingExecutionMs():number {
 }
 export function executionGuard(loop = false): void {
   const scope = storage.getStore(); if (!scope) return;
-  if (scope.signal?.aborted) throw new ExecutionCancelledError();
-  if (Date.now() - scope.budget.startedAt > scope.budget.maxExecutionMs)
+  if (Date.now() - scope.budget.startedAt >= scope.budget.maxExecutionMs)
     throw new Error(`Ejecución interrumpida: tiempo máximo excedido (${scope.budget.maxExecutionMs} ms).`);
+  if (scope.signal?.aborted) throw new ExecutionCancelledError();
   if (loop && ++scope.budget.iterations > scope.budget.maxIterations)
     throw new Error(`Ejecución interrumpida: límite de iteraciones excedido (${scope.budget.maxIterations}).`);
 }

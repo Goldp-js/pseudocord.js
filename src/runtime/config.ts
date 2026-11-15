@@ -2,7 +2,7 @@ import type { StorageConfig } from './storage/index.js';
 import type { CommandSyncMode } from './command-sync.js';
 
 /** Opciones internas normalizadas; configuración pública mediante PseudoClient. */
-export interface PseudoDiscordConfig {
+export interface BotRuntimeConfig {
   token?: string;
   guildId?: string;
   defaultPrefix?: string;
@@ -16,6 +16,11 @@ export interface PseudoDiscordConfig {
   cooldownStorage?: 'memory' | 'database';
   maxIterations?: number;
   maxExecutionMs?: number;
+  /** IANA time zone for scheduled cron tasks; local server time by default. */
+  schedulerTimeZone?: string;
+  /** Opt-in: defer slash command replies after this many milliseconds. */
+  autoDeferMs?: number;
+  autoDeferEphemeral?: boolean;
   database?: StorageConfig;
   plugins?: string[];
   projectRoot?: string;

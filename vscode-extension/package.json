@@ -1,6 +1,6 @@
 {
-  "name": "pseudodiscord-language",
-  "displayName": "PseudoDiscord Language",
+  "name": "pseudocord-language",
+  "displayName": "pseudocord.js Language Support",
   "version": "0.30.2",
   "publisher": "pseudodiscord",
   "engines": {
@@ -14,7 +14,8 @@
       {
         "id": "pseudodiscord",
         "aliases": [
-          "PseudoDiscord",
+          "pseudocord.js",
+          "pseudocord",
           "pdiscord"
         ],
         "extensions": [
@@ -38,9 +39,9 @@
       }
     ],
     "configuration": {
-      "title": "PseudoDiscord",
+      "title": "pseudocord.js",
       "properties": {
-        "pseudodiscord.libraryPath": {
+        "pseudocord.libraryPath": {
           "type": "string",
           "default": "",
           "description": "Ruta completa a dist/src/index.js; si está vacía se busca la biblioteca instalada en node_modules."

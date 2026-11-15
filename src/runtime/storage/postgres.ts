@@ -1,5 +1,5 @@
 import type { PersistentStore, StorageScope } from './index.js';
-import { checkIdentity, serialize, deserialize, checkIncrement } from './shared.js';
+import { checkIdentity, serialize, deserialize, checkIncrement, validateIncrementResult } from './shared.js';
 
 export class PostgresStore implements PersistentStore {
   private cooldownClaims=0;
@@ -26,13 +26,15 @@ export class PostgresStore implements PersistentStore {
     const r=await this.pool.query('SELECT expires_at FROM pd_cooldowns WHERE namespace=$1 AND key=$2',[this.namespace,key]);
     return Math.max(0,Number(r.rows[0]?.expires_at??0)-now);
   }
-  private args(scope:StorageScope,owner:string,key:string):string[]{checkIdentity(scope,owner,key);return [this.namespace,scope,owner,key];}
-  async get(scope:StorageScope,owner:string,key:string):Promise<unknown>{const r=await this.pool.query('SELECT value FROM pd_values WHERE namespace=$1 AND scope=$2 AND owner=$3 AND key=$4',this.args(scope,owner,key));return deserialize(r.rows[0]?.value);}
-  async set(scope:StorageScope,owner:string,key:string,value:unknown):Promise<void>{await this.pool.query(`INSERT INTO pd_values(namespace,scope,owner,key,value) VALUES($1,$2,$3,$4,$5) ON CONFLICT(namespace,scope,owner,key) DO UPDATE SET value=excluded.value,updated_at=NOW()`,[...this.args(scope,owner,key),serialize(value)]);}
-  async delete(scope:StorageScope,owner:string,key:string):Promise<boolean>{const r=await this.pool.query('DELETE FROM pd_values WHERE namespace=$1 AND scope=$2 AND owner=$3 AND key=$4',this.args(scope,owner,key));return r.rowCount>0;}
+  private buildStorageKeyParameters(scope:StorageScope,owner:string,key:string):string[]{checkIdentity(scope,owner,key);return [this.namespace,scope,owner,key];}
+  async get(scope:StorageScope,owner:string,key:string):Promise<unknown>{const r=await this.pool.query('SELECT value FROM pd_values WHERE namespace=$1 AND scope=$2 AND owner=$3 AND key=$4',this.buildStorageKeyParameters(scope,owner,key));return deserialize(r.rows[0]?.value);}
+  async set(scope:StorageScope,owner:string,key:string,value:unknown):Promise<void>{await this.pool.query(`INSERT INTO pd_values(namespace,scope,owner,key,value) VALUES($1,$2,$3,$4,$5) ON CONFLICT(namespace,scope,owner,key) DO UPDATE SET value=excluded.value,updated_at=NOW()`,[...this.buildStorageKeyParameters(scope,owner,key),serialize(value)]);}
+  async delete(scope:StorageScope,owner:string,key:string):Promise<boolean>{const r=await this.pool.query('DELETE FROM pd_values WHERE namespace=$1 AND scope=$2 AND owner=$3 AND key=$4',this.buildStorageKeyParameters(scope,owner,key));return r.rowCount>0;}
   async increment(scope:StorageScope,owner:string,key:string,amount:number):Promise<number>{checkIncrement(amount);const r=await this.pool.query(`INSERT INTO pd_values(namespace,scope,owner,key,value) VALUES($1,$2,$3,$4,$5)
     ON CONFLICT(namespace,scope,owner,key) DO UPDATE SET value=((pd_values.value)::NUMERIC+(excluded.value)::NUMERIC)::TEXT,updated_at=NOW()
-    RETURNING value`,[...this.args(scope,owner,key),String(amount)]);return Number(r.rows[0].value);}
+    WHERE pd_values.value ~ '^-?(0|[1-9][0-9]*)([.][0-9]+)?([eE][+-]?[0-9]+)?$'
+      AND ABS((pd_values.value)::NUMERIC+(excluded.value)::NUMERIC)<=9007199254740991
+    RETURNING value`,[...this.buildStorageKeyParameters(scope,owner,key),String(amount)]);if(!r.rows.length)throw new Error('Persistencia: valor no numérico o incremento fuera del rango seguro.');return validateIncrementResult(r.rows[0].value);}
   async close():Promise<void>{await this.pool.end();}
 }
 

@@ -7,3 +7,4 @@ export * from './errors.js';
 export * from './diagnostics.js';
 export * from './semantic.js';
 export * from './identifiers.js';
+export { markFunctionDeprecated, isFunctionDeprecated } from './deprecated-functions.js';

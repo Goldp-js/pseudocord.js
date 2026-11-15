@@ -1,10 +1,10 @@
 import type { SourceSpan } from '../ast/base.js';
 import type { Diagnostic } from './diagnostics.js';
 
-export class PseudoDiscordError extends Error {
+export class PseudocordError extends Error {
   constructor(message: string, public readonly span?: SourceSpan, public readonly code = 'General-Error') {
     super(message);
-    this.name = 'PseudoDiscordError';
+    this.name = 'PseudocordError';
   }
 }
 
@@ -35,7 +35,7 @@ export function formatValidationDiagnostic(diagnostic: Diagnostic, fallbackSourc
 }
 
 export function formatDiagnostic(error: unknown, source?: string): string {
-  if (!(error instanceof PseudoDiscordError)) return error instanceof Error ? error.stack ?? `error: ${error.message}` : `error: ${String(error)}`;
+  if (!(error instanceof PseudocordError)) return error instanceof Error ? error.stack ?? `error: ${error.message}` : `error: ${String(error)}`;
   const pos = error.span?.start;
   let output = pos
     ? `${error.span?.source ?? '<entrada>'}:${pos.line}:${pos.column}: error ${error.code}: ${error.message}`

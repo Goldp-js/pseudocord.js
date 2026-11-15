@@ -1,5 +1,5 @@
 import type { PersistentStore, StorageScope } from './index.js';
-import { checkIdentity, serialize, deserialize, checkIncrement } from './shared.js';
+import { checkIdentity, serialize, deserialize, checkIncrement, validateIncrementResult } from './shared.js';
 
 export class SqliteStore implements PersistentStore {
   private cooldownClaims=0;
@@ -36,10 +36,10 @@ export class SqliteStore implements PersistentStore {
          ELSE CAST(CAST(pd_values.value AS REAL)+CAST(excluded.value AS REAL) AS TEXT)
        END,updated_at=unixepoch()
        WHERE json_type(pd_values.value) IN ('integer','real')
-         AND ABS(CAST(pd_values.value AS REAL)+CAST(excluded.value AS REAL)) < 9007199254740991
+         AND ABS(CAST(pd_values.value AS REAL)+CAST(excluded.value AS REAL)) <= 9007199254740991
        RETURNING value`).get(this.namespace,scope,owner,key,String(amount)) as {value:string}|undefined;
     if(!row)throw new Error('Persistencia: valor no numérico o resultado fuera del rango seguro; incremento rechazado.');
-    return Number(row.value);
+    return validateIncrementResult(row.value);
   }
   async claimCooldown(key:string,now:number,expires:number):Promise<number>{
     if(!key||key.length>1024||!Number.isSafeInteger(now)||!Number.isSafeInteger(expires)||expires<=now)throw new Error('Persistencia de cooldown: identificador o expiración no válidos.');

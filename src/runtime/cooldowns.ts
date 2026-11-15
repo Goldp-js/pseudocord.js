@@ -9,8 +9,8 @@ export class CommandCooldowns {
   claim(command:DiscordCommandDeclaration,ctx:Record<string,any>,now=Date.now()):void|Promise<void> {
     const rule=command.cooldown;
     if(!rule)return;
-    const getId=(entity:any):string|undefined=>entity?.id?String(entity.id):undefined;
-    const scopeId=rule.scope==='global'?'todos':rule.scope==='usuario'?getId(ctx.autor??ctx.usuario):rule.scope==='servidor'?getId(ctx.servidor):getId(ctx.canal);
+    const getCooldownEntityId=(entity:any):string|undefined=>entity?.id?String(entity.id):undefined;
+    const scopeId=rule.scope==='global'?'todos':rule.scope==='usuario'?getCooldownEntityId(ctx.autor??ctx.usuario):rule.scope==='servidor'?getCooldownEntityId(ctx.servidor):getCooldownEntityId(ctx.canal);
     if(!scopeId)throw new UserInputError(`COOLDOWN POR ${rule.scope.toUpperCase()}: ${rule.scope==='usuario'?'usuario':rule.scope==='servidor'?'servidor':'canal'} no disponible en el contexto.`);
     const key=`${command.commandKind}:${command.prefix??''}:${command.name}:${rule.scope}:${scopeId}`;
     if(this.store){
@@ -36,8 +36,8 @@ export class CommandCooldowns {
     const rule=command?.cooldown;
     if(!rule)return 0;
     const scope=rule.scope;
-    const getId=(v:any):string|undefined=>v?.id?String(v.id):undefined;
-    const sid=scope==='global'?'todos':scope==='usuario'?getId(ctx.autor??ctx.usuario):scope==='servidor'?getId(ctx.servidor):getId(ctx.canal);
+    const getCooldownEntityId=(v:any):string|undefined=>v?.id?String(v.id):undefined;
+    const sid=scope==='global'?'todos':scope==='usuario'?getCooldownEntityId(ctx.autor??ctx.usuario):scope==='servidor'?getCooldownEntityId(ctx.servidor):getCooldownEntityId(ctx.canal);
     if(!sid)throw new UserInputError(`COOLDOWN POR ${scope.toUpperCase()}: identificador de ámbito no disponible.`);
     const key=`${command.commandKind}:${command.prefix??''}:${command.name}:${scope}:${sid}`;
     if(this.store)return this.store.cooldownRemaining(key,now);
