@@ -1,6 +1,6 @@
 {
   "name": "pseudocord.js",
-  "version": "0.30.6-alpha.1",
+  "version": "0.31.0-alpha.1",
   "description": "pseudocord.js es una biblioteca para Node.js y TypeScript que permite desarrollar bots de Discord utilizando pseudocódigo en español.",
   "type": "module",
   "main": "./dist/src/index.js",
@@ -13,7 +13,6 @@
   "bugs": {
     "url": "https://github.com/Goldp-js/pseudocord.js/issues"
   },
-
   "exports": {
     ".": {
       "types": "./dist/src/index.d.ts",
@@ -25,13 +24,12 @@
     "dist/src",
     "README.md",
     "LICENSE",
-    "THIRD_PARTY_NOTICES.md",
     "vscode-extension"
   ],
   "scripts": {
     "build": "tsc",
     "typecheck": "tsc --noEmit",
-    "test": "echo \"Error: no test specified\""
+    "test": "npm run build && node dist/tests/release-v031.js"
   },
   "dependencies": {
     "discord.js": "14.28.1",

@@ -2,7 +2,7 @@ import { resolvePermissionName, DISCORD_PERMISSION_NAMES } from '../discord/perm
 import { currentSignal, remainingExecutionMs, ExecutionCancelledError } from './execution.js';
 
 /** Registro canónico de operaciones Discord; comparación de nombres insensible a mayúsculas. Las comprobaciones de jerarquía fallan si faltan datos. */
-function discordId(x:unknown):string {
+function parseDiscordId(x:unknown):string {
   const data:any=x;
   const id=(data!==null&&typeof data==='object')?(data.id??data.user?.id??data.author?.id):data;
   const value=String(id??'');
@@ -10,14 +10,14 @@ function discordId(x:unknown):string {
   if(!/^\d{15,22}$/.test(normalized))throw new Error('Referencia Discord no válida: se esperaba objeto o Snowflake de 15–22 dígitos.');
   return normalized;
 }
-function softId(x:any):string|undefined {
+function tryParseDiscordId(x:any):string|undefined {
   const v=x?.id??x?.user?.id??x?.author?.id??((typeof x==='string'||typeof x==='number')?x:undefined);
   if(v===undefined)return undefined;
   const raw=String(v);
   return raw.match(/^<@!?([0-9]{15,22})>$/)?.[1]??raw.match(/^<@&([0-9]{15,22})>$/)?.[1]??raw.match(/^<#([0-9]{15,22})>$/)?.[1]??raw;
 }
-function actualUser(x:any):any{return x?.user??x?.author??x;}
-function rolesOf(x:any):any[]{
+function resolveDiscordUser(x:any):any{return x?.user??x?.author??x;}
+function listMemberRoles(x:any):any[]{
   const roles=x?.roles?.cache??x?.roles;
   if(!roles)return [];
   if(Array.isArray(roles))return roles;
@@ -27,20 +27,20 @@ function rolesOf(x:any):any[]{
 }
 function highestRole(member:any):any {
   if(member?.roles?.highest)return member.roles.highest;
-  const roles=rolesOf(member).filter(r=>r&&typeof r==='object');
+  const roles=listMemberRoles(member).filter(r=>r&&typeof r==='object');
   return roles.sort((a,b)=>{
     if(typeof a.comparePositionTo==='function')return -Number(a.comparePositionTo(b));
     return Number(b.position??-1)-Number(a.position??-1);
   })[0];
 }
-function higherRole(a:any,b:any):boolean {
+function isRoleAbove(a:any,b:any):boolean {
   if(!a||!b)return false;
   if(typeof a.comparePositionTo==='function')return a.comparePositionTo(b)>0;
   if(Number.isFinite(a.position)&&Number.isFinite(b.position))return a.position>b.position;
   return false;
 }
 function isOwner(user:any,guild:any):boolean{
-  const uid=softId(user),ownerId=softId(guild?.ownerId);
+  const uid=tryParseDiscordId(user),ownerId=tryParseDiscordId(guild?.ownerId);
   return Boolean(uid&&ownerId&&uid===ownerId);
 }
 
@@ -52,16 +52,16 @@ export function createDiscordHelpers(discord:any={},clientGetter:()=>any=()=>und
   const guild=()=>context().servidor??context().guild;
   const channel=()=>context().canal;
   const message=()=>context().mensaje;
-  const resolveActorTarget=(actorOrTarget:any,target:any)=>target===undefined?[member(),actorOrTarget]:[actorOrTarget,target];
+  const resolveModerationParticipants=(actorOrTarget:any,target:any)=>target===undefined?[member(),actorOrTarget]:[actorOrTarget,target];
   const ensureClient=()=>{const c=clientGetter();if(!c)throw new Error('Cliente Discord no disponible: sesión no iniciada.');return c;};
   const ensureGuild=async(input:any)=>{
     const guild=input??context().servidor??context().guild;
     if(guild?.members?.fetch)return guild;
-    const c=ensureClient();return c.guilds.cache?.get(discordId(guild))??await c.guilds.fetch(discordId(guild));
+    const c=ensureClient();return c.guilds.cache?.get(parseDiscordId(guild))??await c.guilds.fetch(parseDiscordId(guild));
   };
   const ensureGuildMember=async(guild:any,member:any):Promise<any|undefined>=>{
     if(!guild?.members)return undefined;
-    const id=softId(member);if(!id)return undefined;
+    const id=tryParseDiscordId(member);if(!id)return undefined;
     // Validar la membresía en el servidor objetivo antes de comparar jerarquías.
     if(member?.guild?.id===guild.id&&member?.roles&&member?.permissions)return member;
     const cached=guild.members.cache?.get?.(id);
@@ -72,7 +72,7 @@ export function createDiscordHelpers(discord:any={},clientGetter:()=>any=()=>und
       throw error;
     }
   };
-  const makePayload=(payload:any)=>{
+  const createMessagePayload=(payload:any)=>{
     let value=typeof payload==='string'?{content:payload}:payload;
     if(!value||typeof value!=='object'||Array.isArray(value))throw new Error('ENVIAR: contenido incompatible; esperado texto u objeto de mensaje.');
     const kind=value.constructor?.name;
@@ -100,7 +100,7 @@ export function createDiscordHelpers(discord:any={},clientGetter:()=>any=()=>und
     }
     throw new Error('TIENE_PERMISO: objeto miembro ausente o sin permisos accesibles.');
   };
-  const waitMs=(time:any,name:string):number=>{
+  const parseWaitDurationMs=(time:any,name:string):number=>{
     const m=String(time).trim().match(/^(\d+(?:\.\d+)?)(ms|s|m)?$/i);
     if(!m)throw new Error(`${name}: duración no válida; formatos admitidos: 15s, 1m, 2h.`);
     const ms=Number(m[1])*({ms:1,s:1000,m:60000}[(m[2]?.toLowerCase()??'ms') as 'ms'|'s'|'m']);
@@ -115,8 +115,8 @@ export function createDiscordHelpers(discord:any={},clientGetter:()=>any=()=>und
     if(!msg.id)throw new Error('ESPERAR_COMPONENTE: referencia a mensaje ausente; espera global del canal no admitida.');
     const customId=String(id??'');
     if(!customId||customId.length>100)throw new Error('ESPERAR_COMPONENTE: custom_id fuera de rango (1–100 caracteres).');
-    const uid=discordId(usuario);
-    const ms=waitMs(tiempo,'ESPERAR_COMPONENTE');
+    const uid=parseDiscordId(usuario);
+    const ms=parseWaitDurationMs(tiempo,'ESPERAR_COMPONENTE');
     const signal=currentSignal();
     if(signal?.aborted)throw new ExecutionCancelledError();
     const filter=(interaction:any)=>{
@@ -160,10 +160,10 @@ export function createDiscordHelpers(discord:any={},clientGetter:()=>any=()=>und
     const executor=await ensureGuildMember(guild,actor);
     const victim=await ensureGuildMember(guild,target);
     if(!executor||!victim)return false;
-    if(!softId(executor)||softId(executor)===softId(victim)||isOwner(victim,guild))return false;
+    if(!tryParseDiscordId(executor)||tryParseDiscordId(executor)===tryParseDiscordId(victim)||isOwner(victim,guild))return false;
     const permission=action==='kick'?'EXPULSAR_MIEMBROS':action==='ban'?'BANEAR_MIEMBROS':'MODERAR_MIEMBROS';
     if(!isOwner(executor,guild)&&!hasPermission(executor,permission))return false;
-    if(!isOwner(executor,guild)&&!higherRole(highestRole(executor),highestRole(victim)))return false;
+    if(!isOwner(executor,guild)&&!isRoleAbove(highestRole(executor),highestRole(victim)))return false;
     // discord.js calcula también permisos y jerarquía del propio bot.
     return action==='kick'?victim.kickable===true:action==='ban'?victim.bannable===true:victim.moderatable===true;
   };
@@ -176,23 +176,23 @@ export function createDiscordHelpers(discord:any={},clientGetter:()=>any=()=>und
     return input;
   };
   const api:Record<string,(...args:any[])=>any>={
-    MENCIONAR:(...args:any[])=>`<@${discordId(explicitUser('MENCIONAR',args))}>`,
-    MENCIONAR_ROL:(x:any)=>`<@&${discordId(x)}>`,
-    MENCIONAR_CANAL:(x:any)=>`<#${discordId(x)}>`,
-    ID_DE:(...args:any[])=>discordId(explicitUser('ID_DE',args)),
-    NOMBRE_DE:(...args:any[])=>{const x=explicitUser('NOMBRE_DE',args);return String(actualUser(x)?.username??x?.name??x?.displayName??'');},
-    NOMBRE_VISIBLE:(...args:any[])=>{const x=explicitUser('NOMBRE_VISIBLE',args);return String(x?.displayName??x?.nickname??actualUser(x)?.globalName??actualUser(x)?.username??x?.name??'');},
-    ES_BOT:(...args:any[])=>args.length&&args[0]==null?false:Boolean(actualUser(explicitUser('ES_BOT',args))?.bot),
+    MENCIONAR:(...args:any[])=>`<@${parseDiscordId(explicitUser('MENCIONAR',args))}>`,
+    MENCIONAR_ROL:(x:any)=>`<@&${parseDiscordId(x)}>`,
+    MENCIONAR_CANAL:(x:any)=>`<#${parseDiscordId(x)}>`,
+    ID_DE:(...args:any[])=>parseDiscordId(explicitUser('ID_DE',args)),
+    NOMBRE_DE:(...args:any[])=>{const x=explicitUser('NOMBRE_DE',args);return String(resolveDiscordUser(x)?.username??x?.name??x?.displayName??'');},
+    NOMBRE_VISIBLE:(...args:any[])=>{const x=explicitUser('NOMBRE_VISIBLE',args);return String(x?.displayName??x?.nickname??resolveDiscordUser(x)?.globalName??resolveDiscordUser(x)?.username??x?.name??'');},
+    ES_BOT:(...args:any[])=>args.length&&args[0]==null?false:Boolean(resolveDiscordUser(explicitUser('ES_BOT',args))?.bot),
     AVATAR_DE:(...args:any[])=>{
       const x=explicitUser('AVATAR_DE',args),tamano=args.length>1?args[1]:256;
       const size=Number(tamano);
       if(!Number.isSafeInteger(size)||size<16||size>4096||(size&(size-1))!==0)throw new Error('AVATAR_DE: tamaño no admitido; esperado potencia de 2 entre 16 y 4096.');
-      const u=actualUser(x);
+      const u=resolveDiscordUser(x);
       if(!u||typeof u.displayAvatarURL!=='function')throw new Error('AVATAR_DE: referencia de usuario ausente o sin proveedor de avatar.');
       return u.displayAvatarURL({size});
     },
-    ROLES_DE:(x:any=member())=>rolesOf(x).map((r:any)=>r?.name??String(r)),
-    ROLES_OBJETO:(x:any=member())=>rolesOf(x),
+    ROLES_DE:(x:any=member())=>listMemberRoles(x).map((r:any)=>r?.name??String(r)),
+    ROLES_OBJETO:(x:any=member())=>listMemberRoles(x),
     ROL_MAS_ALTO:(x:any=member())=>highestRole(x),
     JERARQUIA_ROL:(x:any=member())=>{
       const role=x?.roles?highestRole(x):x;
@@ -204,10 +204,10 @@ export function createDiscordHelpers(discord:any={},clientGetter:()=>any=()=>und
       const id=typeof rol==='object'&&rol?.id?String(rol.id):String(rol);
       const cache=member?.roles?.cache;
       if(cache?.has?.(id))return true;
-      return rolesOf(member).some((r:any)=>String(r?.id??r)===id||String(r?.name??r).toLowerCase()===id.toLowerCase());
+      return listMemberRoles(member).some((r:any)=>String(r?.id??r)===id||String(r?.name??r).toLowerCase()===id.toLowerCase());
     },
     TIENE_PERMISO:(memberOrPermission:any,permission?:any)=>permission===undefined?hasPermission(member(),memberOrPermission):hasPermission(memberOrPermission,permission),
-    ES_ID_DISCORD:(valor:any)=>{try{discordId(valor);return true;}catch{return false;}},
+    ES_ID_DISCORD:(valor:any)=>{try{parseDiscordId(valor);return true;}catch{return false;}},
     TIENE_PERMISO_BOT:async(permiso:any)=>{
       const g=guild(),c=ensureClient();
       if(!g?.members)throw new Error('TIENE_PERMISO_BOT: contexto de servidor requerido.');
@@ -222,8 +222,8 @@ export function createDiscordHelpers(discord:any={},clientGetter:()=>any=()=>und
       const ch=channel();
       if(typeof ch?.createMessageCollector!=='function'&&typeof ch?.awaitMessages!=='function')
         throw new Error('ESPERAR_MENSAJE: contexto de canal de texto no disponible.');
-      const uid=discordId(usuario);
-      const ms=waitMs(tiempo,'ESPERAR_MENSAJE');
+      const uid=parseDiscordId(usuario);
+      const ms=parseWaitDurationMs(tiempo,'ESPERAR_MENSAJE');
       const filter=(msg:any)=>!msg?.author?.bot&&String(msg?.author?.id)===uid;
       const signal=currentSignal();
       if(signal?.aborted)throw new ExecutionCancelledError();
@@ -266,9 +266,9 @@ export function createDiscordHelpers(discord:any={},clientGetter:()=>any=()=>und
       if(!mensaje)throw new Error('ENLACE_MENSAJE: mensaje ausente.');
       if(typeof mensaje?.url==='string')return mensaje.url;
       const guildId=mensaje?.guildId??mensaje?.guild?.id;
-      const guild=guildId===null||guildId===undefined?'@me':discordId(guildId);
-      const channel=discordId(mensaje?.channelId??mensaje?.channel);
-      const id=discordId(mensaje);
+      const guild=guildId===null||guildId===undefined?'@me':parseDiscordId(guildId);
+      const channel=parseDiscordId(mensaje?.channelId??mensaje?.channel);
+      const id=parseDiscordId(mensaje);
       return `https://discord.com/channels/${guild}/${channel}/${id}`;
     },
     FECHA_DISCORD:(fecha:any=new Date(),estilo='f')=>{
@@ -292,7 +292,7 @@ export function createDiscordHelpers(discord:any={},clientGetter:()=>any=()=>und
       if(typeof requested==='object'&&requested?.id)role=requested;
       else {
         let rid:string;
-        try{rid=discordId(requested);}catch{return false;}
+        try{rid=parseDiscordId(requested);}catch{return false;}
         role=g.roles.cache?.get?.(rid);
         if(!role&&typeof g.roles.fetch==='function'){
           try{role=await g.roles.fetch(rid);}
@@ -302,7 +302,7 @@ export function createDiscordHelpers(discord:any={},clientGetter:()=>any=()=>und
       if(!role||!role.id||(role.guild?.id&&role.guild.id!==g.id))return false;
       if(role.managed||role.id===g.id||role.id===g.roles.everyone?.id)return false;
       if(!isOwner(executor,g)&&!hasPermission(executor,'GESTIONAR_ROLES'))return false;
-      if(!isOwner(executor,g)&&!higherRole(highestRole(executor),role))return false;
+      if(!isOwner(executor,g)&&!isRoleAbove(highestRole(executor),role))return false;
       // editable es una propiedad calculada por discord.js que combina permisos y jerarquía del bot.
       if(typeof role.editable!=='boolean')return false;
       return role.editable;
@@ -310,16 +310,16 @@ export function createDiscordHelpers(discord:any={},clientGetter:()=>any=()=>und
     ES_BANEABLE:(miembro:any)=>miembro?.bannable===true,
     ES_EXPULSABLE:(miembro:any)=>miembro?.kickable===true,
     ES_MODERABLE:(miembro:any)=>miembro?.moderatable===true,
-    PUEDE_BANEAR:(ejecutor:any,objetivo?:any)=>canModerate('ban',...resolveActorTarget(ejecutor,objetivo) as [any,any]),
-    PUEDE_EXPULSAR:(ejecutor:any,objetivo?:any)=>canModerate('kick',...resolveActorTarget(ejecutor,objetivo) as [any,any]),
-    PUEDE_SILENCIAR:(ejecutor:any,objetivo?:any)=>canModerate('timeout',...resolveActorTarget(ejecutor,objetivo) as [any,any]),
+    PUEDE_BANEAR:(ejecutor:any,objetivo?:any)=>canModerate('ban',...resolveModerationParticipants(ejecutor,objetivo) as [any,any]),
+    PUEDE_EXPULSAR:(ejecutor:any,objetivo?:any)=>canModerate('kick',...resolveModerationParticipants(ejecutor,objetivo) as [any,any]),
+    PUEDE_SILENCIAR:(ejecutor:any,objetivo?:any)=>canModerate('timeout',...resolveModerationParticipants(ejecutor,objetivo) as [any,any]),
     CANTIDAD_MIEMBROS:(servidor:any=guild())=>servidor?.memberCount??servidor?.approximateMemberCount??undefined,
     COLOR_ROL:(rol:any)=>rol?.hexColor??(Number.isInteger(rol?.color)?`#${rol.color.toString(16).padStart(6,'0')}`:undefined),
     BANNER_DE:(...args:any[])=>{
       const usuario=explicitUser('BANNER_DE',args),tamano=args.length>1?args[1]:1024;
       const size=Number(tamano);
       if(!Number.isSafeInteger(size)||size<16||size>4096||(size&(size-1))!==0)throw new Error('BANNER_DE: tamaño no admitido; esperado potencia de 2 entre 16 y 4096.');
-      const u=actualUser(usuario);
+      const u=resolveDiscordUser(usuario);
       if(!u||typeof u.bannerURL!=='function')throw new Error('BANNER_DE: referencia de usuario sin proveedor de banner.');
       return u.bannerURL({size})??undefined;
     },
@@ -339,26 +339,26 @@ export function createDiscordHelpers(discord:any={},clientGetter:()=>any=()=>und
     },
     BUSCAR_SERVIDOR_DISCORD:async(id:any=guild())=>{
       if(id?.members)return id;
-      const c=ensureClient();const gid=discordId(id);
+      const c=ensureClient();const gid=parseDiscordId(id);
       return c.guilds.cache?.get(gid)??await c.guilds.fetch(gid);
     },
     OBTENER_USUARIO_DISCORD:async(...args:any[])=>{
       const id=explicitUser('OBTENER_USUARIO_DISCORD',args);
-      if(actualUser(id)?.username)return actualUser(id);
-      const c=ensureClient();const uid=discordId(id);
+      if(resolveDiscordUser(id)?.username)return resolveDiscordUser(id);
+      const c=ensureClient();const uid=parseDiscordId(id);
       return c.users.cache?.get(uid)??await c.users.fetch(uid);
     },
     OBTENER_CANAL_DISCORD:async(id:any=channel())=>{
       if(id?.send||id?.messages)return id;
-      const c=ensureClient();const cid=discordId(id);
+      const c=ensureClient();const cid=parseDiscordId(id);
       return c.channels.cache?.get(cid)??await c.channels.fetch(cid);
     },
     OBTENER_MIEMBRO_DISCORD:async(guildOrId:any,id?:any)=>{
-      const g=await ensureGuild(id===undefined?undefined:guildOrId);const uid=discordId(id===undefined?guildOrId:id);
+      const g=await ensureGuild(id===undefined?undefined:guildOrId);const uid=parseDiscordId(id===undefined?guildOrId:id);
       return g.members.cache?.get(uid)??await g.members.fetch(uid);
     },
     OBTENER_ROL_DISCORD:async(guildOrId:any,id?:any)=>{
-      const g=await ensureGuild(id===undefined?undefined:guildOrId);const rid=discordId(id===undefined?guildOrId:id);
+      const g=await ensureGuild(id===undefined?undefined:guildOrId);const rid=parseDiscordId(id===undefined?guildOrId:id);
       return g.roles.cache?.get(rid)??await g.roles.fetch(rid);
     },
     OBTENER_MENSAJE:async(canalOrId:any,id?:any)=>{
@@ -366,7 +366,7 @@ export function createDiscordHelpers(discord:any={},clientGetter:()=>any=()=>und
       const messageId=id===undefined?canalOrId:id;
       const ch=canal?.messages?.fetch?canal:await api.OBTENER_CANAL_DISCORD(canal);
       if(typeof ch?.messages?.fetch!=='function')throw new Error('OBTENER_MENSAJE: canal sin acceso a historial de mensajes.');
-      return ch.messages.cache?.get(discordId(messageId))??await ch.messages.fetch(discordId(messageId));
+      return ch.messages.cache?.get(parseDiscordId(messageId))??await ch.messages.fetch(parseDiscordId(messageId));
     },
     // Consultas de lectura adicionales.
     
@@ -408,14 +408,14 @@ export function createDiscordHelpers(discord:any={},clientGetter:()=>any=()=>und
       const payload=contenido===undefined?usuarioOContenido:contenido;
       const target=usuario?.send?usuario:await api.OBTENER_USUARIO_DISCORD(usuario);
       if(typeof target?.send!=='function')throw new Error('ENVIAR_PRIVADO: destinatario sin capacidad de recibir mensajes.');
-      return target.send(makePayload(payload));
+      return target.send(createMessagePayload(payload));
     },
     ENVIAR_CANAL:async(canalOContenido:any,contenido?:any)=>{
       const canal=contenido===undefined?channel():canalOContenido;
       const payload=contenido===undefined?canalOContenido:contenido;
       const target=canal?.send?canal:await api.OBTENER_CANAL_DISCORD(canal);
       if(typeof target?.send!=='function')throw new Error('ENVIAR_CANAL: destino incompatible; se requiere canal de texto.');
-      return target.send(makePayload(payload));
+      return target.send(createMessagePayload(payload));
     }
   };
   return api;

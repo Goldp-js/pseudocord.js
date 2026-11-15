@@ -4,6 +4,13 @@ import { COMMAND_INVOCATION } from '../command-context.js';
 
 export type DiscordActionContext = Record<string,any> & { [COMMAND_INVOCATION]?:boolean };
 
+/** Actions without a central permission mapping; moderation has its own hierarchy checks in actions.ts. */
+const actionsWithoutCentralPermission:ReadonlySet<string>=new Set([
+  'reply','send','dm','react','editMessage','deferReply','followUp',
+  'editReply','deleteReply','showModal','autocompleteRespond','joinThread','leaveThread',
+  'kick','ban','timeout'
+]);
+
 /** Regla de autorización compartida para operaciones administrativas de Discord. */
 export function assertDiscordActionPermission(action:string,ctx:DiscordActionContext,guild:any,discord:any):void{
     if(ctx[COMMAND_INVOCATION]!==true&&ctx.argumentos===undefined)return;
@@ -24,7 +31,12 @@ export function assertDiscordActionPermission(action:string,ctx:DiscordActionCon
       addThreadMember:'ManageThreads',removeThreadMember:'ManageThreads',
       moveVoice:'MoveMembers',disconnectVoice:'MoveMembers',presence:'ADMINISTRADOR'
     };
-    const permission=permissions[action];if(!permission)return;
+    const permission=permissions[action];
+    if(!permission){
+      if(!actionsWithoutCentralPermission.has(action))
+        throw new UserInputError(`Operación Discord: '${action}' no tiene una política de permisos registrada.`);
+      return;
+    }
     const helpers=createDiscordHelpers(discord,()=>ctx.cliente??ctx.client);
     if(!guild&&action!=='presence')throw new UserInputError('Operación Discord: contexto de servidor requerido.');
     if(guild&&helpers.ES_DUENO(ctx.miembro??ctx.ejecutor,guild))return;

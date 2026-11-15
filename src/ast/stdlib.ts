@@ -1,48 +1,48 @@
 /** Registro estático de funciones de la biblioteca estándar; actualizar junto con createStdlib(). */
-export const PSEUDODISCORD_STDLIB = {
-  texto: [
+export const STANDARD_FUNCTION_CATALOG = {
+  text: [
     'longitud', 'mayusculas', 'minusculas', 'capitalizar', 'recortar', 'recortarInicio', 'recortarFin',
     'contiene', 'empiezaCon', 'terminaCon', 'reemplazar', 'reemplazarTodo', 'dividir', 'unir',
     'subtexto', 'caracter', 'indiceDe', 'ultimoIndiceDe', 'invertirTexto',
   ],
-  matematicas: [
+  mathematics: [
     'abs', 'min', 'max', 'redondear', 'piso', 'techo', 'truncar',
     'signo', 'sqrt', 'cbrt', 'potencia', 'exp', 'ln', 'log10',
     'log2', 'sin', 'cos', 'tan', 'asin', 'acos', 'atan',
     'atan2', 'hipot', 'grados', 'radianes', 'limitar', 'interpolar', 'esFinito',
     'esNaN',
   ],
-  aleatorio: [
+  randomization: [
     'aleatorio', 'enteroAleatorio', 'elegir', 'barajar', 'uuid',
   ],
-  colecciones: [
+  collections: [
     'longitud', 'agregar', 'agregarInicio', 'extraerUltimo', 'extraerPrimero', 'insertar', 'obtener',
     'tiene', 'indiceDe', 'claves', 'valores', 'entradas', 'ordenar', 'invertir',
     'unicos', 'aplanar', 'mapear', 'filtrar', 'reducir', 'buscar', 'buscarIndice',
     'alguno', 'todos', 'contar', 'promedio',
   ],
-  objetos: [
+  objects: [
     'obtener', 'claves', 'valores', 'entradas',
   ],
-  conversion: [
+  type_conversion: [
     'texto', 'numero', 'entero', 'bigint', 'booleano', 'fecha', 'tipoDe',
   ],
-  tiempo: [
+  date_time: [
     'ahora', 'fecha', 'timestamp', 'sumarTiempo', 'diferenciaTiempo',
   ],
   json: [
     'parsearJSON', 'crearJSON',
   ],
-  regex: [
+  regular_expressions: [
     'regex', 'coincide', 'buscar', 'regexSegura', 'coincideSeguro', 'coincidenciasSeguras',
   ],
-  codificacion: [
+  encoding: [
     'base64Codificar', 'base64Decodificar', 'urlCodificar', 'urlDecodificar',
   ],
-  sistemaSeguro: [
+  logging: [
     'imprimir', 'depurar', 'error', 'coalescer',
   ],
-  aliases_pseint_y_espanol: [
+  language_aliases: [
     'ALEATORIO', 'ENTERO_ALEATORIO', 'LONGITUD', 'MAYUSCULAS', 'MINUSCULAS', 'CAPITALIZAR', 'ELEGIR',
     'BARAJAR', 'UUID', 'AHORA', 'FECHA', 'TIMESTAMP', 'TEXTO', 'NUMERO',
     'ENTERO', 'DECIMAL', 'BOOLEANO', 'TIPO_DE', 'PARSEAR_JSON', 'CREAR_JSON', 'RANGO',
@@ -53,21 +53,21 @@ export const PSEUDODISCORD_STDLIB = {
     'AZAR', 'ALEATORIO_ENTERO', 'CONVERTIRANUMERO', 'CONVERTIRATEXTO', 'SUBCADENA', 'CONCATENAR_TEXTO', 'CONCATENAR_CADENA',
     'LOG_DECIMAL',
   ],
-  comandos_faciles_v011: ['ARGUMENTO','RESTO_ARGUMENTOS','USO_COMANDO','RESPONDER_ERROR','COOLDOWN_RESTANTE','LATENCIA_BOT','TIEMPO_ACTIVO'],
-  discord_facil: [
+  command_context: ['ARGUMENTO','RESTO_ARGUMENTOS','USO_COMANDO','RESPONDER_ERROR','COOLDOWN_RESTANTE','LATENCIA_BOT','TIEMPO_ACTIVO'],
+  discord_entities: [
     // Una grafía canónica por operación. La resolución del lenguaje ignora mayúsculas/minúsculas.
-    'MENCIONAR','MENCIONAR_ROL','MENCIONAR_CANAL','ID_DE','NOMBRE_DE','NOMBRE_VISIBLE',
-    'ES_BOT','AVATAR_DE','BANNER_DE','ROLES_DE','ROLES_OBJETO','ROL_MAS_ALTO',
-    'JERARQUIA_ROL','TIENE_ROL','TIENE_PERMISO','TIENE_PERMISO_BOT','ESPERAR_MENSAJE','ESPERAR_COMPONENTE','ESPERAR_BOTON','ESPERAR_MENU','PERMISOS_DE',
+    'MENCIONAR','MENCIONAR_ROL','MENCIONAR_CANAL','ID_DE', 'OBTENER_ID','NOMBRE_DE', 'OBTENER_NOMBRE','NOMBRE_VISIBLE', 'OBTENER_NOMBRE_VISIBLE',
+    'ES_BOT','AVATAR_DE','BANNER_DE','ROLES_DE', 'OBTENER_ROLES','ROLES_OBJETO','ROL_MAS_ALTO',
+    'JERARQUIA_ROL','TIENE_ROL','TIENE_PERMISO','TIENE_PERMISO_BOT','ESPERAR_MENSAJE','ESPERAR_COMPONENTE','ESPERAR_BOTON','ESPERAR_MENU','PERMISOS_DE', 'OBTENER_PERMISOS',
     'PRIMER_MENCIONADO','ENLACE_MENSAJE','FECHA_DISCORD',
-    'ES_DUENO','ES_ADMINISTRADOR','ES_MIEMBRO','ES_BANEABLE','ES_EXPULSABLE',
+    'ES_DUENO', 'ES_PROPIETARIO_SERVIDOR','ES_ADMINISTRADOR','ES_MIEMBRO','ES_BANEABLE','ES_EXPULSABLE',
     'ES_MODERABLE','PUEDE_GESTIONAR_ROL','PUEDE_BANEAR','PUEDE_EXPULSAR','PUEDE_SILENCIAR',
     'CANTIDAD_MIEMBROS','COLOR_ROL','ESCAPAR_MENCIONES','CODIGO_DISCORD',
-    'EMBED_SIMPLE','ES_ID_DISCORD','BUSCAR_MENSAJES','MENSAJES_FIJADOS','INVITACIONES_DE','AUDITORIA_SERVIDOR','BUSCAR_SERVIDOR_DISCORD','OBTENER_USUARIO_DISCORD','OBTENER_CANAL_DISCORD',
+    'EMBED_SIMPLE', 'CREAR_EMBED','ES_ID_DISCORD','BUSCAR_MENSAJES','MENSAJES_FIJADOS','INVITACIONES_DE','AUDITORIA_SERVIDOR','BUSCAR_SERVIDOR_DISCORD','OBTENER_USUARIO_DISCORD','OBTENER_CANAL_DISCORD',
     'OBTENER_MIEMBRO_DISCORD','OBTENER_ROL_DISCORD','OBTENER_MENSAJE',
     'ENVIAR_PRIVADO','ENVIAR_CANAL',
   ],
-  http_seguro_v014: [
+  http: [
     'HTTP_SOLICITAR',
     'HTTP_JSON',
     'HTTP_ESTADO',
@@ -78,12 +78,12 @@ export const PSEUDODISCORD_STDLIB = {
     'CODIFICAR_HTML',
     'VERIFICAR_FIRMA',
   ],
-  discord_extendido_v014: [
-    'CREACION_USUARIO',
-    'INGRESO_MIEMBRO',
+  discord_resources: [
+    'CREACION_USUARIO', 'FECHA_CREACION_USUARIO',
+    'INGRESO_MIEMBRO', 'FECHA_INGRESO_MIEMBRO',
     'ESTADO_PRESENCIA',
     'ACTIVIDAD_USUARIO',
-    'CANAL_DE_VOZ',
+    'CANAL_DE_VOZ', 'OBTENER_CANAL_VOZ',
     'ESTA_EN_VOZ',
     'ESTA_SILENCIADO',
     'TIEMPO_SILENCIO',
@@ -96,13 +96,13 @@ export const PSEUDODISCORD_STDLIB = {
     'MENSAJE_EXISTE',
     'REACCIONES_DE',
     'USUARIOS_REACCION',
-    'CANAL_DE_TIPO',
+    'CANAL_DE_TIPO', 'OBTENER_CANAL_POR_TIPO',
     'CANAL_PADRE',
     'CANAL_NSFW',
-    'CANAL_LENTO',
+    'CANAL_LENTO', 'INTERVALO_MODO_LENTO',
     'HILOS_ACTIVOS',
     'HILOS_ARCHIVADOS',
-    'ETIQUETAS_FORO',
+    'ETIQUETAS_FORO', 'OBTENER_ETIQUETAS_FORO',
     'WEBHOOKS_DE',
     'INVITACION_DE',
     'RESPONDIENDO',
@@ -110,11 +110,11 @@ export const PSEUDODISCORD_STDLIB = {
     'ESTADISTICAS_BOT',
     'SERVIDORES_BOT',
     'ESTADISTICAS_SERVIDOR',
-    'NIVEL_BOOST',
+    'NIVEL_BOOST', 'NIVEL_IMPULSO_SERVIDOR',
     'NIVEL_VERIFICACION',
     'CANAL_SISTEMA',
     'CANAL_REGLAS',
-    'CREADO_SERVIDOR',
+    'CREADO_SERVIDOR', 'FECHA_CREACION_SERVIDOR',
     'EMOJIS_DE',
     'STICKERS_DE',
     'EVENTOS_PROGRAMADOS',
@@ -122,37 +122,37 @@ export const PSEUDODISCORD_STDLIB = {
     'PUEDE_CAMBIAR_APODO',
     'PUEDE_BORRAR_MENSAJE',
     'PUEDE_EDITAR_CANAL',
-    'BANEO_ACTIVO',
-    'DETALLE_BANEO',
+    'BANEO_ACTIVO', 'EXISTE_BANEO',
+    'DETALLE_BANEO', 'OBTENER_BANEO',
     'RESPUESTA_ENVIADA',
     'ES_INTERACCION',
     'ID_INTERACCION',
     'OPCIONES_MENU',
     'LEER_CAMPO_MODAL',
     'RESPONDER_INTERACCION',
-    'TICKETS_ABIERTOS',
+    'TICKETS_ABIERTOS', 'OBTENER_TICKETS_ABIERTOS',
     'CREAR_TICKET',
     'CERRAR_TICKET',
   ],
-  expansion_v015: [
+  runtime_utilities: [
     'COMANDO_ACTUAL', 'COMANDOS_REGISTRADOS', 'EXISTE_COMANDO', 'PERMISOS_COMANDO', 'USO_COMANDO_DE', 'PARAMETRO_VALIDO',
-    'SUGERIR_ARGUMENTOS', 'RESPUESTA_ORIGINAL', 'ACTUALIZAR_COMPONENTE', 'DESHABILITAR_COMPONENTES', 'FORMULARIO_SIMPLE', 'VALIDAR_MODAL',
+    'SUGERIR_ARGUMENTOS', 'GENERAR_SUGERENCIAS_ARGUMENTOS', 'RESPUESTA_ORIGINAL', 'OBTENER_RESPUESTA_ORIGINAL', 'ACTUALIZAR_COMPONENTE', 'DESHABILITAR_COMPONENTES', 'FORMULARIO_SIMPLE', 'CREAR_FORMULARIO', 'VALIDAR_MODAL',
     'CREAR_CONFIRMACION', 'PUEDE_DAR_ROL', 'PUEDE_QUITAR_ROL', 'LIMITAR_MENCIONES', 'DETECTAR_SPAM', 'ESTADO_AUTOMOD',
     'BUSCAR_MIEMBROS', 'POSICION_MIEMBRO', 'ESTA_MENCIONADO', 'ANTIGUEDAD_CUENTA', 'ANTIGUEDAD_MIEMBRO', 'ULTIMO_MENSAJE_BOT',
     'ENCUESTA_DE', 'VOTOS_ENCUESTA', 'CREAR_PUBLICACION_FORO', 'BUSCAR_PUBLICACIONES', 'PERMISOS_CANAL', 'RESPUESTA_MENSAJE',
-    'ADJUNTOS_MENSAJE', 'IMAGENES_MENSAJE', 'MENCIONES_MENSAJE', 'LINK_CANAL', 'PARTICIPANTES_EVENTO', 'SONIDOS_DE',
+    'ADJUNTOS_MENSAJE', 'IMAGENES_MENSAJE', 'MENCIONES_MENSAJE', 'LINK_CANAL', 'ENLACE_CANAL', 'PARTICIPANTES_EVENTO', 'SONIDOS_DE',
     'CONFIGURACION_BIENVENIDA', 'PLANTILLAS_SERVIDOR', 'CANALES_SERVIDOR', 'ROLES_SERVIDOR', 'NOMBRE_SERVIDOR_DE', 'DESCRIPCION_SERVIDOR',
-    'ID_DUENO_SERVIDOR', 'MEMORIA_BOT', 'USO_CPU_BOT', 'ENTORNO_BOT', 'ESTADO_SHARD', 'LATENCIA_HTTP',
+    'ID_DUENO_SERVIDOR', 'MEMORIA_BOT', 'USO_MEMORIA_BOT', 'USO_CPU_BOT', 'ENTORNO_BOT', 'ESTADO_SHARD', 'LATENCIA_HTTP',
     'DIAGNOSTICO_BOT', 'ARCHIVO_INFO', 'VALIDAR_ADJUNTO', 'IMAGEN_INFO', 'EXTENSION_ARCHIVO', 'ES_IMAGEN',
-    'ES_VIDEO', 'ES_AUDIO', 'DURACION_FORMATO', 'PORCENTAJE', 'EN_RANGO', 'FRECUENCIA',
-    'AGRUPAR_POR', 'DIVIDIR_LISTA', 'PAGINAR_LISTA', 'INTERVALO_FECHAS', 'FORMATO_NUMERO', 'FORMATO_MONEDA',
+    'ES_VIDEO', 'ES_AUDIO', 'DURACION_FORMATO', 'FORMATEAR_DURACION', 'PORCENTAJE', 'EN_RANGO', 'FRECUENCIA',
+    'AGRUPAR_POR', 'DIVIDIR_LISTA', 'PAGINAR_LISTA', 'INTERVALO_FECHAS', 'FORMATO_NUMERO', 'FORMATEAR_NUMERO', 'FORMATO_MONEDA', 'FORMATEAR_MONEDA',
     'LIMPIAR_TEXTO', 'SLUG', 'TRUNCAR_TEXTO', 'ESCAPAR_MARKDOWN', 'COPIAR_OBJETO', 'OBJETO_SEGURO',
-    'COMPARAR_FECHAS', 'SORTEAR_UNICOS', 'ESTADISTICAS_LISTA',
+    'COMPARAR_FECHAS', 'SORTEAR_UNICOS', 'ESTADISTICAS_LISTA', 'ESTADISTICAS_COLECCION',
   ],
-  toolkit_v015: [
-    'BOTON_SIMPLE', 'BOTON_ENLACE', 'BOTON_DESHABILITADO', 'FILA_BOTONES', 'OPCION_MENU', 'MENU_SIMPLE',
-    'MENU_MULTIPLE', 'MENSAJE_CON_BOTONES', 'EMBED_CAMPOS', 'EMBED_AUTOR', 'EMBED_PIE', 'RESPUESTA_SEGURA',
-    'RESPUESTA_EFIMERA', 'RESPUESTA_CON_EMBED', 'COLORES_DISCORD', 'ID_COMPONENTE_UNICO', 'ID_MENSAJE', 'ID_CANAL_ACTUAL',
+  discord_components: [
+    'BOTON_SIMPLE', 'CREAR_BOTON', 'BOTON_ENLACE', 'BOTON_DESHABILITADO', 'CREAR_BOTON_DESHABILITADO', 'FILA_BOTONES', 'OPCION_MENU', 'MENU_SIMPLE', 'CREAR_MENU',
+    'MENU_MULTIPLE', 'MENSAJE_CON_BOTONES', 'EMBED_CAMPOS', 'EMBED_AUTOR', 'EMBED_PIE', 'RESPUESTA_SEGURA', 'CREAR_RESPUESTA_SEGURA',
+    'RESPUESTA_EFIMERA', 'CREAR_RESPUESTA_EFIMERA', 'RESPUESTA_CON_EMBED', 'CREAR_RESPUESTA_CON_EMBED', 'COLORES_DISCORD', 'ID_COMPONENTE_UNICO', 'ID_MENSAJE', 'ID_CANAL_ACTUAL',
     'ID_USUARIO_ACTUAL', 'ID_SERVIDOR_ACTUAL', 'ES_MENSAJE_BOT', 'ES_RESPUESTA', 'TIENE_ADJUNTOS', 'CUENTA_ADJUNTOS',
     'CUENTA_EMBEDS', 'CUENTA_REACCIONES', 'ID_USUARIO_MENSAJE', 'TEXTO_MENSAJE', 'MENSAJE_FIJADO', 'MENSAJE_EDITADO',
     'MENSAJE_FECHA', 'LIMITE_MENSAJE', 'DIVIDIR_MENSAJE', 'LIMPIAR_NOMBRE_CANAL', 'ES_ENLACE_DISCORD', 'EXTRAER_ID_MENCION',
@@ -160,7 +160,7 @@ export const PSEUDODISCORD_STDLIB = {
     'LIMITE_EMBED', 'REGISTRAR_FRECUENCIA', 'CONSULTAR_FRECUENCIA', 'REINICIAR_FRECUENCIA', 'EXTRAER_DOMINIO', 'URL_DISCORD_MENSAJE',
     'NUMERO_A_ROMANO', 'ENMASCARAR_ID', 'TAMAÑO_TEXTO_UTF8',
   ],
-  adicionales: [
+  general_utilities: [
     'titulo', 'repetirTexto', 'rellenoInicio', 'rellenoFin', 'ascii', 'caracterUnicode', 'normalizarUnicode',
     'log', 'esEntero', 'suma', 'producto', 'mediana', 'azar', 'aleatorioEntero',
     'eliminarIndice', 'eliminarValor', 'ordenarNumerico', 'cortar', 'concatenar', 'concatenarTexto', 'subcadena',
@@ -171,11 +171,11 @@ export const PSEUDODISCORD_STDLIB = {
   ],
 } as const;
 
-export type StdlibNamespace = keyof typeof PSEUDODISCORD_STDLIB;
-export type StdlibFunctionName<N extends StdlibNamespace = StdlibNamespace> =
-  (typeof PSEUDODISCORD_STDLIB)[N][number];
+export type StandardFunctionCategory = keyof typeof STANDARD_FUNCTION_CATALOG;
+export type StandardFunctionName<N extends StandardFunctionCategory = StandardFunctionCategory> =
+  (typeof STANDARD_FUNCTION_CATALOG)[N][number];
 
 export function hasStdlibFunction(namespace: string, name: string): boolean {
-  if (!(namespace in PSEUDODISCORD_STDLIB)) return false;
-  return (PSEUDODISCORD_STDLIB as Record<string, readonly string[]>)[namespace]?.includes(name) ?? false;
+  if (!(namespace in STANDARD_FUNCTION_CATALOG)) return false;
+  return (STANDARD_FUNCTION_CATALOG as Record<string, readonly string[]>)[namespace]?.includes(name) ?? false;
 }

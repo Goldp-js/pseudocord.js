@@ -6,9 +6,9 @@ import { parse } from '../language/parser.js';
 import { loadProgramFile } from '../language/loader.js';
 import { validate } from '../language/validator.js';
 import { formatValidationDiagnostic } from '../language/errors.js';
-import { PseudoDiscordBot } from './bot.js';
+import { DiscordBotRuntime } from './bot.js';
 import { collectSourceFiles, resolveProjectSource } from './source-files.js';
-import type { PseudoDiscordConfig } from './config.js';
+import type { BotRuntimeConfig } from './config.js';
 import type { StorageConfig } from './storage/index.js';
 import type { CommandSyncMode, CommandSyncStats } from './command-sync.js';
 
@@ -21,12 +21,19 @@ export interface PseudoClientOptions {
   prefix?: string;
   guildId?: string;
   projectRoot?: string;
-  presence?: PseudoDiscordConfig['presence'];
+  presence?: BotRuntimeConfig['presence'];
   database?: StorageConfig;
   cooldownStorage?: 'memory' | 'database';
   plugins?: string[];
   maxIterations?: number;
   maxExecutionMs?: number;
+  schedulerTimeZone?: string;
+  interactions?: {
+    /** Deferred slash replies may not be used for modal first responses. Disabled by default. */
+    autoDefer?: boolean;
+    deferAfterMs?: number;
+    ephemeral?: boolean;
+  };
   commands?: {
     /** Modo predeterminado manual: start() no publica comandos automáticamente. */
     sync?: 'manual' | 'auto' | 'off';
@@ -48,7 +55,7 @@ export class PseudoClient {
   private readonly listeners: Registration[] = [];
   private readonly options: PseudoClientOptions;
   private readonly root: string;
-  private runtime?: PseudoDiscordBot;
+  private runtime?: DiscordBotRuntime;
   private startup?: Promise<any>;
   private state: 'idle' | 'starting' | 'running' | 'stopping' | 'stopped' = 'idle';
   private lastDiagnostics: readonly Diagnostic[] = [];
@@ -84,6 +91,13 @@ export class PseudoClient {
     if (options.maxExecutionMs !== undefined && (!Number.isSafeInteger(options.maxExecutionMs) || options.maxExecutionMs < 1)) {
       throw new Error('PseudoClient-Limite-Error: maxExecutionMs: entero positivo requerido.');
     }
+    if(options.schedulerTimeZone!==undefined){
+      try{new Intl.DateTimeFormat('en-US',{timeZone:options.schedulerTimeZone});}
+      catch{throw new Error('PseudoClient-TimeZone-Error: identificador IANA de zona horaria inválido.');}
+    }
+    if(options.interactions?.deferAfterMs!==undefined&&
+      (!Number.isSafeInteger(options.interactions.deferAfterMs)||options.interactions.deferAfterMs<250||options.interactions.deferAfterMs>2500))
+      throw new Error('PseudoClient-AutoDefer-Error: deferAfterMs debe estar entre 250 y 2500 ms.');
     this.options = { ...options, commands: options.commands ? {...options.commands} : undefined };
     this.root = resolve(options.projectRoot ?? process.cwd());
   }
@@ -103,7 +117,7 @@ export class PseudoClient {
     this.assertCanConfigure();
     const item = typeof source === 'string' ? {code: source} : source;
     if (!item || typeof item.code !== 'string' || !item.code.trim()) {
-      throw new Error('PseudoClient-Comando-Error: código PseudoDiscord vacío.');
+      throw new Error('PseudoClient-Comando-Error: código del programa vacío.');
     }
     this.sources.push({...item});
     return this;
@@ -153,7 +167,7 @@ export class PseudoClient {
       if (parsed.body.some(d=>d.kind==='ImportDeclaration')) throw new Error('PseudoClient-ImportInline-Error: declaración IMPORTAR no admitida en código inline.');
       all.push(...parsed.body);
     });
-    // Apply the JavaScript default prefix before validation, so collisions are checked correctly.
+    // Resolve the default command prefix before duplicate-name validation.
     const prepared = all.map(d => d.kind==='DiscordCommandDeclaration' && d.commandKind==='message-prefix' && !d.prefixExplicit
       ? {...d,prefix:this.options.prefix??'!'} : d);
     const program:Program = {kind:'Program',version:'0.11',entryFile:entryFile??resolve(realRoot,'main.pdiscord'),sourceFiles:[...seen],body:prepared};
@@ -175,18 +189,21 @@ export class PseudoClient {
       const program=await this.compile();
       this.state='starting';
       const sync=this.options.commands?.sync??'manual';
-      const config:PseudoDiscordConfig={
+      const config:BotRuntimeConfig={
         token:this.options.token, intents:this.options.intents, partials:this.options.partials,
         guildId:this.options.guildId, projectRoot:this.root, defaultPrefix:this.options.prefix,
         database:this.options.database, cooldownStorage:this.options.cooldownStorage,
         plugins:this.options.plugins,
         maxIterations:this.options.maxIterations, maxExecutionMs:this.options.maxExecutionMs,
+        schedulerTimeZone:this.options.schedulerTimeZone,
+        autoDeferMs:this.options.interactions?.autoDefer===true?(this.options.interactions.deferAfterMs??1800):undefined,
+        autoDeferEphemeral:this.options.interactions?.ephemeral===true,
         presence:this.options.presence, syncCommands:sync==='auto',
         commandSyncMode:sync==='off'?'off':this.options.commands?.mode??'upsert',
         commandSyncCacheSeconds:this.options.commands?.cacheSeconds??900,
         pruneManagedCommands:this.options.commands?.pruneManaged===true
       };
-      this.runtime=new PseudoDiscordBot(program,config);
+      this.runtime=new DiscordBotRuntime(program,config);
       try {
         const client=await this.runtime.start(c=>{
           for (const {event,listener,once} of this.listeners) c[once?'once':'on'](event,listener);

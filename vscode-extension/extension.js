@@ -10,14 +10,14 @@ const MAX_RUNTIME_MS = 10_000;
 
 /** Localiza el motor de análisis en la instalación o compilación local. */
 function findRunner(document) {
-  const configured = vscode.workspace.getConfiguration('pseudodiscord').get('libraryPath');
+  const configured = vscode.workspace.getConfiguration('pseudocord').get('libraryPath');
   if (typeof configured === 'string' && configured.trim()) {
     const file = path.resolve(configured);
     return fs.existsSync(file) ? {file} : undefined;
   }
   let dir = path.dirname(document.uri.fsPath);
   for (let i = 0; i < 24; i++) {
-    for (const relative of ['node_modules/pseudodiscord/dist/src/index.js', 'dist/src/index.js']) {
+    for (const relative of ['node_modules/pseudocord.js/dist/src/index.js', 'dist/src/index.js']) {
       const file = path.join(dir, relative);
       if (fs.existsSync(file)) return {file};
     }
@@ -43,7 +43,7 @@ function documentRange(document, item) {
 
 function activate(context) {
   const collection = vscode.languages.createDiagnosticCollection('pseudodiscord');
-  const output = vscode.window.createOutputChannel('PseudoDiscord Diagnostics');
+  const output = vscode.window.createOutputChannel('pseudocord.js Diagnostics');
   const scheduled = new Map();
   const running = new Map();
   let disposed = false;
@@ -104,7 +104,7 @@ function activate(context) {
           const explanation = item.hint ? `${item.message}\nAyuda: ${item.hint}` : item.message;
           const diagnostic = new vscode.Diagnostic(documentRange(document, item), explanation || 'Diagnóstico sin descripción.', severity);
           diagnostic.code = item.code;
-          diagnostic.source = 'PseudoDiscord';
+          diagnostic.source = 'pseudocord.js';
           return diagnostic;
         });
         collection.set(document.uri, entries);

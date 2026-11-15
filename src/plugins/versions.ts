@@ -1,7 +1,7 @@
 /** Subconjunto explícito de rangos SemVer: exactos, ^, ~, comparadores y ||.
  * No admite comodines parciales, hífen ni rangos npm complejos. */
 interface Version { major:number; minor:number; patch:number; pre:string[] }
-function parse(value:string):Version {
+function parseSemanticVersion(value:string):Version {
   const m=/^v?(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-([0-9A-Za-z.-]+))?(?:\+[0-9A-Za-z.-]+)?$/.exec(value);
   if(!m)throw new Error(`Versión SemVer no válida: '${value}'.`);
   const v={major:Number(m[1]),minor:Number(m[2]),patch:Number(m[3]),pre:m[4]?.split('.')??[]};
@@ -9,7 +9,7 @@ function parse(value:string):Version {
   if(v.pre.some(s=>!s||/^\d+$/.test(s)&&s.length>1&&s.startsWith('0')))throw new Error(`Versión preliminar no válida: '${value}'.`);
   return v;
 }
-function cmp(a:Version,b:Version):number {
+function compareSemanticVersions(a:Version,b:Version):number {
   for(const k of ['major','minor','patch'] as const)if(a[k]!==b[k])return Math.sign(a[k]-b[k]);
   if(!a.pre.length&&!b.pre.length)return 0;
   if(!a.pre.length)return 1;if(!b.pre.length)return -1;
@@ -23,7 +23,7 @@ function cmp(a:Version,b:Version):number {
   return 0;
 }
 export function satisfiesVersion(version:string,range:string):boolean {
-  const actual=parse(version);
+  const actual=parseSemanticVersion(version);
   return range.split('||').some(group=>{
     const parts=group.trim().split(/\s+/).filter(Boolean);
     if(!parts.length)throw new Error('Rango SemVer vacío.');
@@ -32,17 +32,17 @@ export function satisfiesVersion(version:string,range:string):boolean {
     const valid=parts.every(part=>{
       if(part==='*')return true;
       const m=/^(\^|~|>=|<=|>|<|=)?(.+)$/.exec(part)!;
-      const op=m[1]??'=',reference=parse(m[2]!);
+      const op=m[1]??'=',reference=parseSemanticVersion(m[2]!);
       if(reference.pre.length&&reference.major===actual.major&&reference.minor===actual.minor&&reference.patch===actual.patch)explicitlyAllowsPre=true;
-      const c=cmp(actual,reference);
+      const c=compareSemanticVersions(actual,reference);
       if(op==='^'){
         const max={major:reference.major,minor:reference.minor,patch:reference.patch};
         if(reference.major>0){max.major++;max.minor=0;max.patch=0;}
         else if(reference.minor>0){max.minor++;max.patch=0;}
         else max.patch++;
-        return c>=0&&cmp(actual,{...max,pre:[]})<0;
+        return c>=0&&compareSemanticVersions(actual,{...max,pre:[]})<0;
       }
-      if(op==='~')return c>=0&&cmp(actual,{major:reference.major,minor:reference.minor+1,patch:0,pre:[]})<0;
+      if(op==='~')return c>=0&&compareSemanticVersions(actual,{major:reference.major,minor:reference.minor+1,patch:0,pre:[]})<0;
       if(op==='>=')return c>=0;if(op==='<=')return c<=0;
       if(op==='>')return c>0;if(op==='<')return c<0;
       return c===0;

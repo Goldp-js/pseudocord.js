@@ -3,7 +3,7 @@ import { dirname, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 const [modulePath, sourceName = '<editor>'] = process.argv.slice(2);
 if (!modulePath) {
-  process.stderr.write('PseudoDiscord: falta la ruta del motor de análisis.\n');
+  process.stderr.write('pseudocord.js: falta la ruta del motor de análisis.\n');
   process.exitCode = 1;
 } else {
   // Acceso directo a módulos internos desde el paquete instalado.

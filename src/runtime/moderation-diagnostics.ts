@@ -13,7 +13,7 @@ function sameId(a: any, b: any): boolean {
   return Boolean(aId && bId && String(aId) === String(bId));
 }
 
-function permission(member: any, name: string): boolean | undefined {
+function getMemberPermissionState(member: any, name: string): boolean | undefined {
   try {
     return typeof member?.permissions?.has === 'function'
       ? Boolean(member.permissions.has(name)) : undefined;
@@ -36,7 +36,7 @@ function insufficientRole(first: any, second: any): boolean | undefined {
   return undefined;
 }
 
-function botMember(guild: any): any {
+function resolveBotGuildMember(guild: any): any {
   const botId = guild?.client?.user?.id;
   return guild?.members?.me ?? (botId && guild?.members?.cache?.get?.(botId));
 }
@@ -45,14 +45,14 @@ function botMember(guild: any): any {
 export function moderationBotDenial(action: ModerationAction, target: any, guild: any): string {
   const data = actions[action];
   const preface = `Moderación: acción denegada por permisos o jerarquía del bot (${data.property}=false).`;
-  const bot = botMember(guild);
+  const bot = resolveBotGuildMember(guild);
   if (guild?.ownerId && String(target?.id) === String(guild.ownerId))
     return `${preface} [Moderacion-ObjetivoPropietario-Error] El miembro objetivo es propietario del servidor.`;
   if (bot && sameId(bot, target))
     return `${preface} [Moderacion-BotAutoModeracion-Error] El bot no puede moderarse a sí mismo.`;
-  if (action === 'timeout' && permission(target, 'Administrator') === true)
+  if (action === 'timeout' && getMemberPermissionState(target, 'Administrator') === true)
     return `${preface} [Moderacion-TimeoutAdministrador-Error] No se puede silenciar a un miembro con permiso Administrador.`;
-  if (bot && permission(bot, data.permission) === false)
+  if (bot && getMemberPermissionState(bot, data.permission) === false)
     return `${preface} [Moderacion-PermisoBot-Error] El bot no tiene el permiso ${data.permission}.`;
   if (bot && insufficientRole(bot, target) === true)
     return `${preface} [Moderacion-JerarquiaBot-Error] El rol más alto del bot debe superar al del objetivo.`;
@@ -67,7 +67,7 @@ export function moderationExecutorDenial(action: ModerationAction, actor: any, t
   if (guild?.ownerId && String(target?.id) === String(guild.ownerId))
     return `${preface} [Moderacion-EjecutorObjetivoPropietario-Error] El objetivo es propietario del servidor.`;
   const actorIsOwner = guild?.ownerId && String(actor.id) === String(guild.ownerId);
-  if (!actorIsOwner && permission(actor, data.permission) === false)
+  if (!actorIsOwner && getMemberPermissionState(actor, data.permission) === false)
     return `${preface} [Moderacion-PermisoEjecutor-Error] Falta el permiso ${data.permission} en el ejecutor.`;
   if (!actorIsOwner && insufficientRole(actor, target) === true)
     return `${preface} [Moderacion-JerarquiaEjecutor-Error] El rol más alto del ejecutor no supera al del objetivo.`;

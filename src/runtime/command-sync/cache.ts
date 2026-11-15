@@ -46,7 +46,7 @@ export async function readCache(path: string, scope: string): Promise<SyncCacheR
     return {...data, managed};
   } catch (e) {
     if ((e as NodeJS.ErrnoException).code === 'ENOENT') return undefined;
-    // A broken cache must never cause incorrect remote writes or a startup failure.
+    // Invalid cache records do not authorize remote writes or interrupt startup.
     return undefined;
   }
 }
@@ -71,7 +71,7 @@ export async function withFileLock<T>(path: string, operation: () => Promise<T>)
       break;
     } catch(e) {
       if ((e as NodeJS.ErrnoException).code !== 'EEXIST') throw e;
-      // If a process crashed, safely allow recovery after five minutes.
+      // Remove stale locks after the recovery threshold.
       const info = await stat(lockPath).catch(()=>undefined);
       if (info && Date.now() - info.mtimeMs > 5*60*1000) await unlink(lockPath).catch(()=>{});
       await delay(150);

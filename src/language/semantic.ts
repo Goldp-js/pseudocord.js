@@ -8,6 +8,7 @@ import type { TypeNode } from '../ast/types.js';
 import { createStdlib } from '../runtime/stdlib.js';
 import { matchesType, typeName } from '../runtime/type-system.js';
 import { createDiagnostic } from './diagnostics.js';
+import { isFunctionDeprecated } from './deprecated-functions.js';
 import type { Diagnostic } from './diagnostics.js';
 
 export interface SemanticOptions { strictNames?: boolean; externalFunctions?: readonly string[] }
@@ -50,16 +51,14 @@ export function analyzeSemantics(program:Program, options:SemanticOptions={}):Di
   const declare=(scope:Scope,name:string,node:any,info:SymbolInfo={})=>{
     if(!scope.define(name,info))emit('error','Semantic-DeclaracionDuplicada-Error',`Declaración local duplicada: '${name}'.`,node);
   };
-  // Un alias corto solo se diagnostica cuando aparece en el código, no
-  // simplemente porque exista la opción. Los ámbitos léxicos prevalecen.
+  // Diagnose short aliases at reference sites; lexical scope takes precedence.
   const warnShortOption=(name:string,scope:Scope,node:{span?:any}):void=>{
     const option=scope.resolve(name)?.ambiguousOption;
     if(!option)return;
     emit('warning','Validator-OpcionContexto-Error',
       `Identificador ambiguo '${name}': coincide con una opción y una variable del contexto. Argumento: argumentos.${option}; contexto: ${contextOptionRoute(option)}.`,node);
   };
-  // Una cadena puede contener expresiones {NOMBRE_DE(usuario)}. Solo se
-  // inspeccionan sus colisiones; no alteramos el lint de interpolaciones.
+  // Inspect identifier collisions within interpolation expressions without modifying interpolation diagnostics.
   const inspectOptionReferences=(expression:Expression,scope:Scope,location:{span?:any}):void=>{
     if(expression.kind==='IdentifierExpression'){
       warnShortOption(expression.name,scope,location);return;
@@ -81,13 +80,13 @@ export function analyzeSemantics(program:Program, options:SemanticOptions={}):Di
   const check=(expr:Expression,scope:Scope):void=>{
     switch(expr.kind){
       case 'LiteralExpression': {
-        // Lint conservador: solo referencias simples {variable}, no expresiones ni JSON.
+        // Restrict interpolation analysis to simple identifier references.
         if(typeof expr.value==='string')for(const match of expr.value.matchAll(/\{([A-Za-z_ÁÉÍÓÚÜÑáéíóúüñ][A-Za-z0-9_ÁÉÍÓÚÜÑáéíóúüñ]*)\}/g)){
           const name=match[1]!;
           if(!scope.resolve(name))emit(options.strictNames?'error':'warning','Semantic-InterpolacionSinResolver-Error',`Interpolación sin resolver: '{${name}}'; identificador '${name}' no declarado en el ámbito actual.`,expr);
         }
         if(typeof expr.value==='string')for(const match of expr.value.matchAll(/\{([^{}]+)\}/g)){
-          try {inspectOptionReferences(parseExpressionText(match[1]!),scope,expr);}catch{/* No es una expresión DSL válida; conservar el diagnóstico existente. */}
+          try {inspectOptionReferences(parseExpressionText(match[1]!),scope,expr);}catch{/* Invalid DSL expression; preserve existing diagnostics. */}
         }
         break;
       }
@@ -96,7 +95,7 @@ export function analyzeSemantics(program:Program, options:SemanticOptions={}):Di
         else warnShortOption(expr.name,scope,expr);
         break;
       case 'MemberExpression': {
-        // `contexto.usuario` y `argumentos.usuario` nunca son alias cortos.
+        // Explicit context and argument property paths are excluded from short-alias diagnostics.
         if(expr.object.kind!=='IdentifierExpression'||!['contexto','argumentos'].includes(normalize(expr.object.name))
           ||!scope.resolve(expr.object.name))check(expr.object,scope);
         if(expr.object.kind==='IdentifierExpression'){
@@ -106,7 +105,15 @@ export function analyzeSemantics(program:Program, options:SemanticOptions={}):Di
         break;
       }
       case 'IndexExpression':check(expr.object,scope);check(expr.index,scope);break;
-      case 'CallExpression':check(expr.callee,scope);for(const a of expr.arguments)check(a.value,scope);break;
+      case 'CallExpression': {
+        if(expr.callee.kind==='IdentifierExpression' && isFunctionDeprecated(expr.callee.name)) {
+          const name=expr.callee.name;
+          emit('warning','Semantic-FuncionObsoleta-Warning',`${name} está obsoleta y se quitará en el futuro.`,expr.callee);
+        }
+        check(expr.callee,scope);
+        for(const a of expr.arguments)check(a.value,scope);
+        break;
+      }
       case 'NewExpression':check(expr.callee,scope);for(const a of expr.arguments)check(a.value,scope);break;
       case 'UnaryExpression':check(expr.argument,scope);break;
       case 'BinaryExpression':case 'LogicalExpression':check(expr.left,scope);check(expr.right,scope);break;
@@ -176,13 +183,13 @@ export function analyzeSemantics(program:Program, options:SemanticOptions={}):Di
       case 'RecordDeclaration':for(const field of decl.fields)if(field.defaultValue)check(field.defaultValue,globals);break;
       case 'EnumDeclaration':break;
       case 'FunctionDeclaration': {
-        // Las funciones no reciben automáticamente objetos Discord salvo si se les pasan.
+        // Discord context bindings require explicit function parameters.
         const scope=new Scope(globals);
         for(const p of decl.parameters){if(p.defaultValue){check(p.defaultValue,scope);checkLiteral(p.defaultValue,p.type,decl,`valor por defecto ${p.name}`);}declare(scope,p.name,decl,{type:p.type});}
         walk(decl.body,scope);break;
       }
       case 'DiscordCommandDeclaration': {
-        // Atajos posicionales definidos únicamente dentro de comandos.
+        // Positional argument aliases are restricted to command scopes.
         const positional=Array.from({length:25},(_,i)=>`argumento${i+1}`);
         analyzeBody(decl.body,[...positional,...decl.options.map(o=>o.name)],decl.options.map(o=>o.name));
         for(const sub of decl.subcommands??[])analyzeBody(sub.body,[...positional,...sub.options.map(o=>o.name)],sub.options.map(o=>o.name));
