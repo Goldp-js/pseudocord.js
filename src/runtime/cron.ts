@@ -3,7 +3,7 @@ interface CronField { values:ReadonlySet<number>; wildcard:boolean }
 const LIMITS:readonly [number,number][]=[[0,59],[0,23],[1,31],[1,12],[0,7]];
 function parseField(source:string,min:number,max:number,dayOfWeek=false):CronField {
   const values=new Set<number>();
-  const wildcard=source==='*';
+  const wildcard=source==='*'||source==='*/1';
   for(const entry of source.split(',')){
     const m=/^(\*|\d+|\d+-\d+)(?:\/(\d+))?$/.exec(entry);
     if(!m)throw new Error(`Cron: campo inválido '${source}'.`);
