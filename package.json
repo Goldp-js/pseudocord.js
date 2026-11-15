@@ -1,6 +1,6 @@
 {
   "name": "pseudocord.js",
-  "version": "0.30.5-alpha.1",
+  "version": "0.30.6-alpha.1",
   "description": "pseudocord.js es una biblioteca para Node.js y TypeScript que permite desarrollar bots de Discord utilizando pseudocódigo en español.",
   "type": "module",
   "main": "./dist/src/index.js",
