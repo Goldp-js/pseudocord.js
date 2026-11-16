@@ -1,5 +1,13 @@
+
+[![npm version](https://img.shields.io/npm/v/pseudocord.js?logo=npm&color=cb3837)](https://www.npmjs.com/package/pseudocord.js)
+[![npm downloads](https://img.shields.io/npm/dm/pseudocord.js?color=blue)](https://www.npmjs.com/package/pseudocord.js)
+[![License](https://img.shields.io/github/license/Goldp-js/pseudocord.js)](https://github.com/Goldp-js/pseudocord.js/blob/alpha/LICENSE)
+[![Node.js](https://img.shields.io/badge/Node.js-%3E%3D22.13-43853d?logo=node.js)](https://nodejs.org/)
+[![GitHub Issues](https://img.shields.io/github/issues/Goldp-js/pseudocord.js)](https://github.com/Goldp-js/pseudocord.js/issues)
+[![Documentation](https://img.shields.io/badge/docs-GitHub%20Pages-555555?logo=github)](https://goldp-js.github.io/pseudocord.js/)
+![Status](https://img.shields.io/badge/status-alpha-orange)
+
 # pseudocord.js
-[![npm version](https://shields.io)](https://www.npmjs.com/package/pseudocord.js)
 
 **Crea bots de Discord utilizando pseudocódigo en español.**
 
