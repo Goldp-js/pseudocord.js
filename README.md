@@ -1,4 +1,5 @@
 # pseudocord.js
+[![npm version](https://shields.io)](https://www.npmjs.com/package/pseudocord.js)
 
 **Crea bots de Discord utilizando pseudocódigo en español.**
 
