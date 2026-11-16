@@ -1,16 +1,66 @@
-name: Publish to jsr
+
+name: Publish to JSR
+
 on:
+  workflow_dispatch:
+
   push:
-    branches:
-      - main
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: jsr-publish
+  cancel-in-progress: false
 
 jobs:
   publish:
+    name: Publish Pseudocord.js
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      id-token: write
+
     steps:
-      - uses: actions/checkout@v6
-      - name: Publish package
-        run: npx jsr publish
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify version
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from "node:fs";
+
+          const pkg = JSON.parse(fs.readFileSync("package.json"));
+          const jsr = JSON.parse(fs.readFileSync("jsr.json"));
+
+          if (pkg.version !== jsr.version) {
+            throw new Error("npm and JSR versions differ");
+          }
+
+          if (process.env.GITHUB_REF_TYPE === "tag") {
+            const expected = `v${jsr.version}`;
+            if (process.env.GITHUB_REF_NAME !== expected) {
+              throw new Error(`Expected tag ${expected}`);
+            }
+          }
+
+          console.log(`Publishing version ${jsr.version}`);
+          NODE
+
+      - name: Validate TypeScript
+        run: npm run typecheck
+
+      - name: Validate JSR package
+        run: npx --yes jsr publish --dry-run
+
+      - name: Publish to JSR
+        run: npx --yes jsr publish
